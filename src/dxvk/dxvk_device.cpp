@@ -104,6 +104,12 @@ namespace dxvk {
   }
   
   
+  Rc<DxvkFence> DxvkDevice::createFence(
+    const DxvkFenceCreateInfo& fenceInfo) {
+    return new DxvkFence(this, fenceInfo);
+  }
+
+
   Rc<DxvkFramebuffer> DxvkDevice::createFramebuffer(
     const DxvkRenderTargets& renderTargets) {
     const DxvkFramebufferSize defaultSize = {
