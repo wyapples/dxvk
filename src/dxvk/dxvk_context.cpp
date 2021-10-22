@@ -2684,6 +2684,16 @@ namespace dxvk {
   }
 
 
+  void DxvkContext::waitFence(const Rc<DxvkFence>& fence, uint64_t value) {
+    m_cmd->waitFence(fence, value);
+  }
+
+
+  void DxvkContext::signalFence(const Rc<DxvkFence>& fence, uint64_t value) {
+    m_cmd->signalFence(fence, value);
+  }
+
+
   void DxvkContext::trimStagingBuffers() {
     m_staging.trim();
   }

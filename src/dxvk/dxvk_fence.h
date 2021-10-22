@@ -2,6 +2,8 @@
 
 #include <functional>
 #include <queue>
+#include <utility>
+#include <vector>
 
 #include "dxvk_resource.h"
 
@@ -26,7 +28,7 @@ namespace dxvk {
    * Wrapper around Vulkan timeline semaphores that
    * can signal an event when the value changes.
    */
-  class DxvkFence : public DxvkResource {
+  class DxvkFence : public RcObject {
 
   public:
 
@@ -91,6 +93,36 @@ namespace dxvk {
     dxvk::thread                    m_thread;
 
     void run();
+
+  };
+
+
+  /**
+   * \brief Fence list
+   */
+  class DxvkFenceList {
+
+  public:
+
+    DxvkFenceList();
+    ~DxvkFenceList();
+
+    size_t count() const {
+      return m_fences.size();
+    }
+
+    std::pair<VkSemaphore, uint64_t> get(size_t idx) {
+      const auto& e = m_fences[idx];
+      return std::make_pair(e.first->handle(), e.second);
+    }
+
+    void add(Rc<DxvkFence> fence, uint64_t value);
+
+    void reset();
+
+  private:
+
+    std::vector<std::pair<Rc<DxvkFence>, uint64_t>> m_fences;
 
   };
 

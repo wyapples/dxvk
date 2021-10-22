@@ -101,4 +101,24 @@ namespace dxvk {
     }
   }
 
+
+  DxvkFenceList::DxvkFenceList() {
+
+  }
+
+
+  DxvkFenceList::~DxvkFenceList() {
+
+  }
+
+
+  void DxvkFenceList::add(Rc<DxvkFence> fence, uint64_t value) {
+    m_fences.emplace_back(std::move(fence), value);
+  }
+
+
+  void DxvkFenceList::reset() {
+    m_fences.clear();
+  }
+
 }

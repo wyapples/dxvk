@@ -5,6 +5,7 @@
 #include "dxvk_bind_mask.h"
 #include "dxvk_buffer.h"
 #include "dxvk_descriptor.h"
+#include "dxvk_fence.h"
 #include "dxvk_gpu_event.h"
 #include "dxvk_gpu_query.h"
 #include "dxvk_lifetime.h"
@@ -221,6 +222,26 @@ namespace dxvk {
      */
     void notifySignals() {
       m_signalTracker.notify();
+    }
+
+    /**
+     * \brief Waits for fence
+     *
+     * \param [in] fence Fence to wait on
+     * \param [in] value Value to wait for
+     */
+    void waitFence(Rc<DxvkFence> fence, uint64_t value) {
+      m_waitSemaphores.add(std::move(fence), value);
+    }
+    
+    /**
+     * \brief Signals fence
+     *
+     * \param [in] fence Fence to signal
+     * \param [in] value Value to signal to
+     */
+    void signalFence(Rc<DxvkFence> fence, uint64_t value) {
+      m_signalSemaphores.add(std::move(fence), value);
     }
     
     /**
@@ -810,6 +831,9 @@ namespace dxvk {
     VkCommandBuffer     m_sdmaBuffer = VK_NULL_HANDLE;
 
     VkSemaphore         m_sdmaSemaphore = VK_NULL_HANDLE;
+
+    DxvkFenceList       m_waitSemaphores;
+    DxvkFenceList       m_signalSemaphores;
     
     DxvkCmdBufferFlags  m_cmdBuffersUsed;
     DxvkLifetimeTracker m_resources;

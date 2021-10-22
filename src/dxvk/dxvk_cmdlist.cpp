@@ -113,6 +113,16 @@ namespace dxvk {
     if (wakeSemaphore)
       m_submission.addSignalSemaphore(wakeSemaphore, 0);
     
+    for (size_t i = 0; i < m_waitSemaphores.count(); i++) {
+      auto entry = m_waitSemaphores.get(i);
+      m_submission.addWaitSemaphore(entry.first, entry.second, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
+    }
+
+    for (size_t i = 0; i < m_signalSemaphores.count(); i++) {
+      auto entry = m_signalSemaphores.get(i);
+      m_submission.addSignalSemaphore(entry.first, entry.second);
+    }
+
     return submitToQueue(graphics.queueHandle, m_fence, m_submission);
   }
   
@@ -181,6 +191,9 @@ namespace dxvk {
 
     // Less important stuff
     m_statCounters.reset();
+
+    m_waitSemaphores.reset();
+    m_signalSemaphores.reset();
   }
 
 
