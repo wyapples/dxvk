@@ -1088,6 +1088,7 @@ namespace dxvk {
     DxvkBarrierSet          m_execBarriers;
     DxvkBarrierSet          m_gfxBarriers;
     DxvkBarrierControlFlags m_barrierControl;
+    DxvkRenderingInfo       m_renderInfo;
     
     DxvkGpuQueryManager     m_queryManager;
     DxvkStagingDataAlloc    m_staging;
@@ -1288,6 +1289,16 @@ namespace dxvk {
     void updateRenderTargetLayouts(
       const DxvkFramebufferInfo&    newFb,
       const DxvkFramebufferInfo&    oldFb);
+
+    void transitionRenderTargetLoadLayouts(
+            DxvkBarrierSet&         barriers,
+      const DxvkFramebufferInfo&    fb,
+      const DxvkRenderPassOps&      ops);
+
+    void transitionRenderTargetStoreLayouts(
+            DxvkBarrierSet&         barriers,
+      const DxvkFramebufferInfo&    fb,
+      const DxvkRenderPassOps&      ops);
 
     void prepareImage(
             DxvkBarrierSet&         barriers,

@@ -60,6 +60,7 @@ namespace dxvk {
   enum class DxvkContextFeature {
     NullDescriptors,
     ExtendedDynamicState,
+    DynamicRendering,
   };
 
   using DxvkContextFeatures = Flags<DxvkContextFeature>;
@@ -97,6 +98,28 @@ namespace dxvk {
   struct DxvkViewportState {
     std::array<VkViewport, DxvkLimits::MaxNumViewports> viewports    = { };
     std::array<VkRect2D,   DxvkLimits::MaxNumViewports> scissorRects = { };
+  };
+
+
+  struct DxvkRenderingInfo {
+    DxvkRenderingInfo() {
+      info = { VK_STRUCTURE_TYPE_RENDERING_INFO_KHR };
+      info.colorAttachmentCount = MaxNumRenderTargets;
+      info.pColorAttachments    = colorInfos;
+      info.pDepthAttachment     = &depthInfo;
+      info.pStencilAttachment   = &stencilInfo;
+
+      for (uint32_t i = 0; i < MaxNumRenderTargets; i++)
+        colorInfos[i] = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR };
+
+      depthInfo   = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR };
+      stencilInfo = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR };
+    }
+
+    VkRenderingInfoKHR           info;
+    VkRenderingAttachmentInfoKHR colorInfos[MaxNumRenderTargets];
+    VkRenderingAttachmentInfoKHR depthInfo;
+    VkRenderingAttachmentInfoKHR stencilInfo;
   };
 
 
