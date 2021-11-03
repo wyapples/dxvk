@@ -300,6 +300,11 @@ namespace dxvk::vk {
     VULKAN_FN(vkCmdDrawIndirectCountKHR);
     VULKAN_FN(vkCmdDrawIndexedIndirectCountKHR);
     #endif
+
+    #ifdef VK_KHR_dynamic_rendering
+    VULKAN_FN(vkCmdBeginRenderingKHR);
+    VULKAN_FN(vkCmdEndRenderingKHR);
+    #endif
     
     #ifdef VK_KHR_swapchain
     VULKAN_FN(vkCreateSwapchainKHR);

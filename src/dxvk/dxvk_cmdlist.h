@@ -268,6 +268,12 @@ namespace dxvk {
     }
 
 
+    void cmdBeginRendering(
+      const VkRenderingInfoKHR*     pRenderingInfo) {
+      m_vkd->vkCmdBeginRenderingKHR(m_execBuffer, pRenderingInfo);
+    }
+
+
     void cmdBeginTransformFeedback(
             uint32_t                  firstBuffer,
             uint32_t                  bufferCount,
@@ -584,6 +590,11 @@ namespace dxvk {
     
     void cmdEndRenderPass() {
       m_vkd->vkCmdEndRenderPass(m_execBuffer);
+    }
+    
+    
+    void cmdEndRendering() {
+      m_vkd->vkCmdEndRenderingKHR(m_execBuffer);
     }
     
     
