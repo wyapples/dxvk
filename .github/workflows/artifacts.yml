@@ -30,6 +30,6 @@ jobs:
       id: upload-artifacts
       uses: actions/upload-artifact@v2
       with:
-        name: dxvk-${{ env.VERSION_NAME }}
-        path: build/dxvk-${{ env.VERSION_NAME }}
+        name: dxvk_tiw -${{ env.VERSION_NAME }}
+        path: build/dxvk_tiw-${{ env.VERSION_NAME }}
         if-no-files-found: error
