@@ -35,8 +35,8 @@ namespace dxvk {
     if (m_layout->getStorageDescriptorStages())
       m_flags.set(DxvkGraphicsPipelineFlag::HasStorageDescriptors);
     
-    m_common.msSampleShadingEnable = m_shaders.fs != nullptr && m_shaders.fs->flags().test(DxvkShaderFlag::HasSampleRateShading);
-    m_common.msSampleShadingFactor = 1.0f;
+    m_common.msSampleShadingEnable = m_shaders.fs != nullptr && (m_shaders.fs->flags().test(DxvkShaderFlag::HasSampleRateShading) || pipeMgr->m_device->config().forceSampleRateShading);
+    m_common.msSampleShadingFactor = pipeMgr->m_device->config().forceSampleRateShading ? pipeMgr->m_device->config().forcedSampleRateShadingFactor : 1.0f;
   }
   
   
