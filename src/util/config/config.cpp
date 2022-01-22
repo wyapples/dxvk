@@ -487,6 +487,14 @@ namespace dxvk {
     { R"(\\RichardBurnsRally_SSE\.exe$)", {{
       { "d3d9.floatEmulation",              "Strict" },
     }} },
+    /* BlazBlue Centralfiction                  */
+    { R"(\\BBCF\.exe$)", {{
+      { "d3d9.floatEmulation",              "Strict" },
+    }} },
+    /* James Cameron's Avatar needs invariantPosition to fix black flickering vegetation */
+    { R"(\\Avatar\.exe$)", {{
+      { "d3d9.invariantPosition",              "True" },
+    }} },
   }};
 
 
