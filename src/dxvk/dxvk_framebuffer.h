@@ -65,11 +65,8 @@ namespace dxvk {
       state.add(depthView);
       for (uint32_t i = 0; i < MaxNumRenderTargets; i++)
         state.add(colorViews[i]);
-#if defined(_MSC_VER) && !defined(_WIN64)
-      state.add(static_cast<uint64_t>(renderPass));
-#else
-      state.add(reinterpret_cast<uint64_t>(renderPass));
-#endif
+
+      state.add(uint64_t(renderPass));
       return state;
     }
 

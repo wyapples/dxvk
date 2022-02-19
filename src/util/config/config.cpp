@@ -57,9 +57,12 @@ namespace dxvk {
       { "dxgi.deferSurfaceCreation",        "True" },
     }} },
     /* Quantum Break: Mever initializes shared    *
-     * memory in one of its compute shaders       */
+     * memory in one of its compute shaders.      *
+     * Also loves using MAP_WRITE on the same     *
+     * set of resources multiple times per frame. */
     { R"(\\QuantumBreak\.exe$)", {{
       { "d3d11.zeroInitWorkgroupMemory",    "True" },
+      { "d3d11.maxImplicitDiscardSize",     "-1"   },
     }} },
     /* Anno 2205: Random crashes with state cache */
     { R"(\\anno2205\.exe$)", {{
@@ -112,8 +115,9 @@ namespace dxvk {
     }} },
     /* NieR Replicant                             */
     { R"(\\NieR Replicant ver\.1\.22474487139\.exe)", {{
-      { "dxgi.syncInterval",                "1"   },
-      { "dxgi.maxFrameRate",                "60"  },
+      { "dxgi.syncInterval",                "1"    },
+      { "dxgi.maxFrameRate",                "60"   },
+      { "d3d11.apitraceMode",               "True" },
     }} },
     /* SteamVR performance test                   */
     { R"(\\vr\.exe$)", {{
@@ -138,14 +142,6 @@ namespace dxvk {
     /* Saints Row: The Third                      */
     { R"(\\SaintsRowTheThird_DX11\.exe$)", {{
       { "d3d11.constantBufferRangeCheck",   "True" },
-    }} },
-    /* Metal Gear Solid 5                         */
-    { R"(\\mgsvtpp\.exe$)", {{
-      { "dxvk.enableOpenVR",                "False" },
-    }} },
-    /* Raft                                       */
-    { R"(\\Raft\.exe$)", {{
-      { "dxvk.enableOpenVR",                "False" },
     }} },
     /* Crysis 3 - slower if it notices AMD card     *
      * Apitrace mode helps massively in cpu bound   *
@@ -194,10 +190,6 @@ namespace dxvk {
      * in a compute shader, causing artifacts     */
     { R"(\\F1_20(1[89]|[2-9][0-9])\.exe$)", {{
       { "d3d11.forceTgsmBarriers",          "True" },
-    }} },
-    /* Subnautica                                 */
-    { R"(\\Subnautica\.exe$)", {{
-      { "dxvk.enableOpenVR",                "False" },
     }} },
     /* Blue Reflection                            */
     { R"(\\BLUE_REFLECTION\.exe$)", {{
@@ -263,6 +255,10 @@ namespace dxvk {
       { "d3d11.ignoreGraphicsBarriers",     "True" },
       { "d3d11.relaxedBarriers",            "True" },
       { "dxgi.nvapiHack",                   "False" },
+    }} },
+    /* AoE 2 DE - runs poorly for some users      */
+    { R"(\\AoE2DE_s\.exe$)", {{
+      { "d3d11.apitraceMode",               "True" },
     }} },
 
     /**********************************************/
