@@ -159,6 +159,9 @@ namespace dxvk {
 
     /// Force VK_FORMAT_D32_SFLOAT_S8_UINT depth stencil for increased precision.
     bool forceD32FS8DepthStencil;
+
+    /// Disable direct buffer mapping
+    bool allowDirectBufferMapping;
   };
 
 }

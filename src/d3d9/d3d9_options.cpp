@@ -73,6 +73,7 @@ namespace dxvk {
     this->apitraceMode                  = config.getOption<bool>        ("d3d9.apitraceMode",                  false);
     this->deviceLocalConstantBuffers    = config.getOption<bool>        ("d3d9.deviceLocalConstantBuffers",    false);
     this->forceD32FS8DepthStencil       = config.getOption<bool>        ("d3d9.forceD32FS8DepthStencil",       false);
+    this->allowDirectBufferMapping      = config.getOption<bool>        ("d3d9.allowDirectBufferMapping",      true);
 
     // If we are not Nvidia, enable general hazards.
     this->generalHazards = adapter != nullptr
