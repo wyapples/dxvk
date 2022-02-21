@@ -63,25 +63,22 @@ namespace dxvk {
   VkPipeline DxvkGraphicsPipeline::getPipelineHandle(
     const DxvkGraphicsPipelineStateInfo& state,
     const DxvkRenderPass*                renderPass) {
-    DxvkGraphicsPipelineInstance* instance = this->findInstance(state, renderPass);
+    DxvkGraphicsPipelineInstance* instance = nullptr;
 
-    if (unlikely(!instance)) {
-      // Exit early if the state vector is invalid
-      if (!this->validatePipelineState(state))
-        return VK_NULL_HANDLE;
-
-      // Prevent other threads from adding new instances and check again
-      std::lock_guard<dxvk::mutex> lock(m_mutex);
+    { std::lock_guard<sync::Spinlock> lock(m_mutex);
+    
       instance = this->findInstance(state, renderPass);
-
-      if (!instance) {
-        // Keep pipeline object locked, at worst we're going to stall
-        // a state cache worker and the current thread needs priority.
-        instance = this->createInstance(state, renderPass);
-        this->writePipelineStateToCache(state, renderPass->format());
-      }
+      
+      if (instance)
+        return instance->pipeline();
+      
+      instance = this->createInstance(state, renderPass);
     }
+    
+    if (!instance)
+      return VK_NULL_HANDLE;
 
+    this->writePipelineStateToCache(state, renderPass->format());
     return instance->pipeline();
   }
 
@@ -89,13 +86,7 @@ namespace dxvk {
   void DxvkGraphicsPipeline::compilePipeline(
     const DxvkGraphicsPipelineStateInfo& state,
     const DxvkRenderPass*                renderPass) {
-    // Exit early if the state vector is invalid
-    if (!this->validatePipelineState(state))
-      return;
-
-    // Keep the object locked while compiling a pipeline since compiling
-    // similar pipelines concurrently is fragile on some drivers
-    std::lock_guard<dxvk::mutex> lock(m_mutex);
+    std::lock_guard<sync::Spinlock> lock(m_mutex);
 
     if (!this->findInstance(state, renderPass))
       this->createInstance(state, renderPass);
@@ -105,10 +96,15 @@ namespace dxvk {
   DxvkGraphicsPipelineInstance* DxvkGraphicsPipeline::createInstance(
     const DxvkGraphicsPipelineStateInfo& state,
     const DxvkRenderPass*                renderPass) {
-    VkPipeline pipeline = this->createPipeline(state, renderPass);
+    // If the pipeline state vector is invalid, don't try
+    // to create a new pipeline, it won't work anyway.
+    if (!this->validatePipelineState(state))
+      return nullptr;
+
+    VkPipeline newPipelineHandle = this->createPipeline(state, renderPass);
 
     m_pipeMgr->m_numGraphicsPipelines += 1;
-    return &(*m_pipelines.emplace(state, renderPass, pipeline));
+    return &m_pipelines.emplace_back(state, renderPass, newPipelineHandle);
   }
   
   

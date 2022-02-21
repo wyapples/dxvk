@@ -2,8 +2,6 @@
 
 #include <mutex>
 
-#include "../util/sync/sync_list.h"
-
 #include "dxvk_bind_mask.h"
 #include "dxvk_constant_state.h"
 #include "dxvk_graphics_state.h"
@@ -82,7 +80,7 @@ namespace dxvk {
 
     DxvkGraphicsPipelineInstance()
     : m_stateVector (),
-      m_renderPass  (nullptr),
+      m_renderPass  (VK_NULL_HANDLE),
       m_pipeline    (VK_NULL_HANDLE) { }
 
     DxvkGraphicsPipelineInstance(
@@ -222,9 +220,8 @@ namespace dxvk {
     DxvkGraphicsCommonPipelineStateInfo m_common;
     
     // List of pipeline instances, shared between threads
-    alignas(CACHE_LINE_SIZE)
-    dxvk::mutex                               m_mutex;
-    sync::List<DxvkGraphicsPipelineInstance>  m_pipelines;
+    alignas(CACHE_LINE_SIZE) sync::Spinlock   m_mutex;
+    std::vector<DxvkGraphicsPipelineInstance> m_pipelines;
     
     DxvkGraphicsPipelineInstance* createInstance(
       const DxvkGraphicsPipelineStateInfo& state,
