@@ -89,7 +89,7 @@ namespace dxvk {
         image->info().layout,
         VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
       
-      // Maybe needs device wait too
+      // This wait may need to be on all Faces and Mip Levels (2 loops).
       if (waitResourceIdle)
         m_device->WaitForResource(image, tex->GetMappingBufferSequenceNumber(0u), D3DLOCK_READONLY);
 
