@@ -65,7 +65,6 @@ namespace dxvk {
       state.add(depthView);
       for (uint32_t i = 0; i < MaxNumRenderTargets; i++)
         state.add(colorViews[i]);
-
       state.add(uint64_t(renderPass));
       return state;
     }
