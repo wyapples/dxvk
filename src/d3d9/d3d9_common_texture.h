@@ -560,8 +560,10 @@ namespace dxvk {
       if (m_desc.Pool == D3DPOOL_SYSTEMMEM || m_desc.Pool == D3DPOOL_SCRATCH)
         return D3D9_COMMON_TEXTURE_MAP_MODE_SYSTEMMEM;
 
+#ifdef D3D9_USE_MEM_FILE_FOR_MANAGED
       if (IsManaged())
         return D3D9_COMMON_TEXTURE_MAP_MODE_MANAGED;
+#endif
 
       return D3D9_COMMON_TEXTURE_MAP_MODE_BACKED;
     }
