@@ -39,18 +39,19 @@ namespace dxvk {
           HWND                   hFocusWindow,
           DWORD                  BehaviorFlags,
           Rc<DxvkDevice>         dxvkDevice)
-    : m_parent         ( pParent )
-    , m_deviceType     ( DeviceType )
-    , m_window         ( hFocusWindow )
-    , m_behaviorFlags  ( BehaviorFlags )
-    , m_adapter        ( pAdapter )
-    , m_dxvkDevice     ( dxvkDevice )
-    , m_shaderModules  ( new D3D9ShaderModuleSet )
-    , m_d3d9Options    ( dxvkDevice, pParent->GetInstance()->config() )
-    , m_multithread    ( BehaviorFlags & D3DCREATE_MULTITHREADED )
-    , m_isSWVP         ( (BehaviorFlags & D3DCREATE_SOFTWARE_VERTEXPROCESSING) ? true : false )
-    , m_csThread       ( dxvkDevice, dxvkDevice->createContext() )
-    , m_csChunk        ( AllocCsChunk() ) {
+    : m_parent          ( pParent )
+    , m_deviceType      ( DeviceType )
+    , m_window          ( hFocusWindow )
+    , m_behaviorFlags   ( BehaviorFlags )
+    , m_adapter         ( pAdapter )
+    , m_dxvkDevice      ( dxvkDevice )
+    , m_memoryAllocator ( )
+    , m_shaderModules   ( new D3D9ShaderModuleSet )
+    , m_d3d9Options     ( dxvkDevice, pParent->GetInstance()->config() )
+    , m_multithread     ( BehaviorFlags & D3DCREATE_MULTITHREADED )
+    , m_isSWVP          ( (BehaviorFlags & D3DCREATE_SOFTWARE_VERTEXPROCESSING) ? true : false )
+    , m_csThread        ( dxvkDevice, dxvkDevice->createContext() )
+    , m_csChunk         ( AllocCsChunk() ) {
     // If we can SWVP, then we use an extended constant set
     // as SWVP has many more slots available than HWVP.
     bool canSWVP = CanSWVP();
@@ -4129,10 +4130,6 @@ namespace dxvk {
 
     auto& desc = *(pResource->Desc());
 
-    bool alloced = pResource->CreateBufferSubresource(Subresource);
-
-    const Rc<DxvkBuffer> mappedBuffer = pResource->GetBuffer(Subresource);
-
     auto& formatMapping = pResource->GetFormatMapping();
 
     const DxvkFormatInfo* formatInfo = formatMapping.IsValid()
@@ -4187,12 +4184,15 @@ namespace dxvk {
     bool needsReadback = pResource->NeedsReachback(Subresource) || renderable;
     pResource->SetNeedsReadback(Subresource, false);
 
-    DxvkBufferSliceHandle physSlice;
+    void* mapPtr;
 
-    if (Flags & D3DLOCK_DISCARD) {
+    if ((Flags & D3DLOCK_DISCARD) && !pResource->DoesStagingBufferUploads(Subresource)) {
       // We do not have to preserve the contents of the
       // buffer if the entire image gets discarded.
-      physSlice = pResource->DiscardMapSlice(Subresource);
+      pResource->CreateBufferSubresource(Subresource);
+      DxvkBufferSliceHandle physSlice = pResource->DiscardMapSlice(Subresource);
+      mapPtr = physSlice.mapPtr;
+      const Rc<DxvkBuffer> mappedBuffer = pResource->GetBuffer(Subresource);
 
       EmitCs([
         cImageBuffer = std::move(mappedBuffer),
@@ -4201,7 +4201,8 @@ namespace dxvk {
         ctx->invalidateBuffer(cImageBuffer, cBufferSlice);
       });
     } else {
-      physSlice = pResource->GetMappedSlice(Subresource);
+      const bool alloced = pResource->AllocLockingData(Subresource);
+      mapPtr = pResource->GetLockingData(Subresource);
 
       // We do not need to wait for the resource in the event the
       // calling app promises not to overwrite data that is in use
@@ -4212,9 +4213,11 @@ namespace dxvk {
         && (usesStagingBuffer || readOnly);
 
       if (alloced && !needsReadback) {
-        std::memset(physSlice.mapPtr, 0, physSlice.length);
+        VkDeviceSize size = pResource->GetMipSize(Subresource);
+        std::memset(mapPtr, 0, size);
       }
       else if (!skipWait) {
+        const Rc<DxvkBuffer> mappedBuffer = pResource->GetBuffer(Subresource);
         if (unlikely(needsReadback) && pResource->GetImage() != nullptr) {
           Rc<DxvkImage> resourceImage = pResource->GetImage();
 
@@ -4347,8 +4350,7 @@ namespace dxvk {
       (!atiHack) ? formatInfo : nullptr,
       pBox);
 
-
-    uint8_t* data = reinterpret_cast<uint8_t*>(physSlice.mapPtr);
+    uint8_t* data = reinterpret_cast<uint8_t*>(mapPtr);
     data += offset;
     pLockedBox->pBits = data;
     return D3D_OK;
@@ -4434,7 +4436,6 @@ namespace dxvk {
 
     // Now that data has been written into the buffer,
     // we need to copy its contents into the image
-    const DxvkBufferSliceHandle srcSlice = pSrcTexture->GetMappedSlice(SrcSubresource);
 
     auto formatInfo  = imageFormatInfo(image->info().format);
     auto srcSubresource = pSrcTexture->GetSubresourceFromIndex(
@@ -4480,14 +4481,16 @@ namespace dxvk {
       VkDeviceSize rowAlignment = 1;
       DxvkBufferSlice copySrcSlice;
       if (pSrcTexture->DoesStagingBufferUploads(SrcSubresource)) {
+        void* mapPtr = pSrcTexture->GetLockingData(SrcSubresource);
         VkDeviceSize dirtySize = extentBlockCount.width * extentBlockCount.height * extentBlockCount.depth * formatInfo->elementSize;
         D3D9BufferSlice slice = AllocTempBuffer<false>(dirtySize);
         copySrcSlice = slice.slice;
-        void* srcData = reinterpret_cast<uint8_t*>(srcSlice.mapPtr) + copySrcOffset;
+        void* srcData = reinterpret_cast<uint8_t*>(mapPtr) + copySrcOffset;
         util::packImageData(
           slice.mapPtr, srcData, extentBlockCount, formatInfo->elementSize,
           pitch, pitch * srcTexLevelExtentBlockCount.height);
       } else {
+        const DxvkBufferSliceHandle srcSlice = pSrcTexture->GetMappedSlice(SrcSubresource);
         copySrcSlice = DxvkBufferSlice(pSrcTexture->GetBuffer(SrcSubresource), copySrcOffset, srcSlice.length);
         rowAlignment = pitch; // row alignment can act as the pitch parameter
       }
@@ -4511,6 +4514,7 @@ namespace dxvk {
     }
     else {
       const DxvkFormatInfo* formatInfo = imageFormatInfo(pDestTexture->GetFormatMapping().FormatColor);
+      const DxvkBufferSliceHandle srcSlice = pSrcTexture->GetMappedSlice(SrcSubresource);
 
       // Add more blocks for the other planes that we might have.
       // TODO: PLEASE CLEAN ME
@@ -5335,7 +5339,7 @@ namespace dxvk {
 
   void D3D9DeviceEx::UploadManagedTexture(D3D9CommonTexture* pResource) {
     for (uint32_t subresource = 0; subresource < pResource->CountSubresources(); subresource++) {
-      if (!pResource->NeedsUpload(subresource) || pResource->GetBuffer(subresource) == nullptr)
+      if (!pResource->NeedsUpload(subresource) || pResource->GetLockingData(subresource) == nullptr)
         continue;
 
       this->FlushImage(pResource, subresource);
