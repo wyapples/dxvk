@@ -4482,6 +4482,9 @@ namespace dxvk {
       DxvkBufferSlice copySrcSlice;
       if (pSrcTexture->DoesStagingBufferUploads(SrcSubresource)) {
         const void* mapPtr = MapTexture(pSrcTexture, SrcSubresource);
+        if (mapPtr == nullptr)
+          return;
+
         _ASSERT(mapPtr != nullptr);
         VkDeviceSize dirtySize = extentBlockCount.width * extentBlockCount.height * extentBlockCount.depth * formatInfo->elementSize;
         D3D9BufferSlice slice = AllocTempBuffer<false>(dirtySize);
