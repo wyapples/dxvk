@@ -4482,6 +4482,7 @@ namespace dxvk {
       DxvkBufferSlice copySrcSlice;
       if (pSrcTexture->DoesStagingBufferUploads(SrcSubresource)) {
         const void* mapPtr = MapTexture(pSrcTexture, SrcSubresource);
+        _ASSERT(mapPtr != nullptr);
         VkDeviceSize dirtySize = extentBlockCount.width * extentBlockCount.height * extentBlockCount.depth * formatInfo->elementSize;
         D3D9BufferSlice slice = AllocTempBuffer<false>(dirtySize);
         copySrcSlice = slice.slice;
@@ -7378,7 +7379,7 @@ namespace dxvk {
     // Will only be called inside the device lock
     void *ptr = pTexture->GetLockingData(Subresource);
 
-#ifdef D3D9_USE_MEM_FILE_FOR_MANAGED
+#if defined(D3D9_USE_MEM_FILE_FOR_MANAGED) || defined(D3D9_USE_MEM_FILE_FOR_SYSTEMMEM)
     if (pTexture->GetMapMode() == D3D9_COMMON_TEXTURE_MAP_MODE_MANAGED) {
       m_mappedTextures.insert(pTexture);
       pTexture->SetMappingFrame(m_frameCounter);
@@ -7389,7 +7390,7 @@ namespace dxvk {
   }
 
   void D3D9DeviceEx::TouchMappedTexture(D3D9CommonTexture* pTexture) {
-#ifdef D3D9_USE_MEM_FILE_FOR_MANAGED
+#if defined(D3D9_USE_MEM_FILE_FOR_MANAGED) || defined(D3D9_USE_MEM_FILE_FOR_SYSTEMMEM)
     if (pTexture->GetMapMode() != D3D9_COMMON_TEXTURE_MAP_MODE_MANAGED)
       return;
 
@@ -7399,7 +7400,7 @@ namespace dxvk {
   }
 
   void D3D9DeviceEx::RemoveMappedTexture(D3D9CommonTexture* pTexture) {
-#ifdef D3D9_USE_MEM_FILE_FOR_MANAGED
+#if defined(D3D9_USE_MEM_FILE_FOR_MANAGED) || defined(D3D9_USE_MEM_FILE_FOR_SYSTEMMEM)
     if (pTexture->GetMapMode() != D3D9_COMMON_TEXTURE_MAP_MODE_MANAGED)
       return;
 
@@ -7410,7 +7411,7 @@ namespace dxvk {
 
   void D3D9DeviceEx::UnmapTextures() {
     // Will only be called inside the device lock
-#ifdef D3D9_USE_MEM_FILE_FOR_MANAGED
+#if defined(D3D9_USE_MEM_FILE_FOR_MANAGED) || defined(D3D9_USE_MEM_FILE_FOR_SYSTEMMEM)
     if (m_d3d9Options.unmapDelay == 0)
       return;
 

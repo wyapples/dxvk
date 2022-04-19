@@ -7,7 +7,7 @@
 
 namespace dxvk {
 
-#ifdef D3D9_USE_MEM_FILE_FOR_MANAGED
+#if defined(D3D9_USE_MEM_FILE_FOR_MANAGED) || defined(D3D9_USE_MEM_FILE_FOR_SYSTEMMEM)
   D3D9Memory D3D9MemoryAllocator::Alloc(uint32_t Size) {
     std::lock_guard<dxvk::mutex> lock(m_mutex);
 

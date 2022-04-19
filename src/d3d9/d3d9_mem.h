@@ -5,9 +5,10 @@
 
 #if defined(_WIN32) && !defined(_WIN64)
   #define D3D9_USE_MEM_FILE_FOR_MANAGED
+  #define D3D9_USE_MEM_FILE_FOR_SYSTEMMEM
 #endif
 
-#ifdef D3D9_USE_MEM_FILE_FOR_MANAGED
+#if defined(D3D9_USE_MEM_FILE_FOR_MANAGED) || defined(D3D9_USE_MEM_FILE_FOR_SYSTEMMEM)
   #define WIN32_LEAN_AND_MEAN
   #include <winbase.h>
 #endif
@@ -17,7 +18,7 @@ namespace dxvk {
   class D3D9MemoryAllocator;
   class D3D9Memory;
 
-#ifdef D3D9_USE_MEM_FILE_FOR_MANAGED
+#if defined(D3D9_USE_MEM_FILE_FOR_MANAGED) || defined(D3D9_USE_MEM_FILE_FOR_SYSTEMMEM)
 
   class D3D9MemoryChunk;
 
