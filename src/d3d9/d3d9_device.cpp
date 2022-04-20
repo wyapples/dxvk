@@ -4483,10 +4483,14 @@ namespace dxvk {
       DxvkBufferSlice copySrcSlice;
       if (pSrcTexture->DoesStagingBufferUploads(SrcSubresource)) {
         const void* mapPtr = MapTexture(pSrcTexture, SrcSubresource);
+
+#ifdef D3D9_ALLOW_UNMAPPING
+        // SYSTEMMEM cube textures are not always preloaded, and I do not
+        // yet know how to preload, so just ignore for now.
         if (mapPtr == nullptr)
           return;
+#endif
 
-        _ASSERT(mapPtr != nullptr);
         VkDeviceSize dirtySize = extentBlockCount.width * extentBlockCount.height * extentBlockCount.depth * formatInfo->elementSize;
         D3D9BufferSlice slice = AllocTempBuffer<false>(dirtySize);
         copySrcSlice = slice.slice;
