@@ -4,11 +4,10 @@
 #include "../util/thread.h"
 
 #if defined(_WIN32) && !defined(_WIN64)
-  #define D3D9_USE_MEM_FILE_FOR_MANAGED
-  #define D3D9_USE_MEM_FILE_FOR_SYSTEMMEM
+  #define D3D9_ALLOW_UNMAPPING
 #endif
 
-#if defined(D3D9_USE_MEM_FILE_FOR_MANAGED) || defined(D3D9_USE_MEM_FILE_FOR_SYSTEMMEM)
+#ifdef D3D9_ALLOW_UNMAPPING
   #define WIN32_LEAN_AND_MEAN
   #include <winbase.h>
 #endif
@@ -18,7 +17,7 @@ namespace dxvk {
   class D3D9MemoryAllocator;
   class D3D9Memory;
 
-#if defined(D3D9_USE_MEM_FILE_FOR_MANAGED) || defined(D3D9_USE_MEM_FILE_FOR_SYSTEMMEM)
+#ifdef D3D9_ALLOW_UNMAPPING
 
   class D3D9MemoryChunk;
 

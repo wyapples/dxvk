@@ -23,7 +23,7 @@ namespace dxvk {
     D3D9_COMMON_TEXTURE_MAP_MODE_NONE,      ///< No mapping available
     D3D9_COMMON_TEXTURE_MAP_MODE_BACKED,    ///< Mapped image through buffer
     D3D9_COMMON_TEXTURE_MAP_MODE_SYSTEMMEM, ///< Only a buffer - no image
-    D3D9_COMMON_TEXTURE_MAP_MODE_MANAGED,   ///< Non-Vulkan memory that can be unmapped
+    D3D9_COMMON_TEXTURE_MAP_MODE_UNMAPPABLE,   ///< Non-Vulkan memory that can be unmapped
   };
   
   /**
@@ -406,7 +406,7 @@ namespace dxvk {
     bool NeedsUpload(UINT Subresource) const { return m_needsUpload.get(Subresource); }
     bool NeedsAnyUpload() { return m_needsUpload.any(); }
     void ClearNeedsUpload() { return m_needsUpload.clearAll();  }
-    bool DoesStagingBufferUploads(UINT Subresource) const { return m_mapMode == D3D9_COMMON_TEXTURE_MAP_MODE_MANAGED || m_uploadUsingStaging.get(Subresource); }
+    bool DoesStagingBufferUploads(UINT Subresource) const { return m_mapMode == D3D9_COMMON_TEXTURE_MAP_MODE_UNMAPPABLE || m_uploadUsingStaging.get(Subresource); }
 
     void EnableStagingBufferUploads(UINT Subresource) {
       m_uploadUsingStaging.set(Subresource, true);

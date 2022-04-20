@@ -7,8 +7,8 @@
 
 namespace dxvk {
 
-#if defined(D3D9_USE_MEM_FILE_FOR_MANAGED) || defined(D3D9_USE_MEM_FILE_FOR_SYSTEMMEM)
 
+#ifdef D3D9_ALLOW_UNMAPPING
 
 #define DM(...)                                                         \
   {                                                                            \
