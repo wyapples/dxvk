@@ -3912,7 +3912,7 @@ namespace dxvk {
     enabled.core.features.textureCompressionBC = VK_TRUE;
 
     enabled.extDepthClipEnable.depthClipEnable = supported.extDepthClipEnable.depthClipEnable;
-    enabled.extHostQueryReset.hostQueryReset = supported.extHostQueryReset.hostQueryReset;
+    enabled.extHostQueryReset.hostQueryReset = VK_TRUE;
 
     // SM2 level hardware
     enabled.core.features.occlusionQueryPrecise = VK_TRUE;
@@ -4478,6 +4478,7 @@ namespace dxvk {
           + srcOffsetBlockCount.y * pitch
           + srcOffsetBlockCount.x * formatInfo->elementSize;
 
+      VkDeviceSize sliceAlignment = 1;
       VkDeviceSize rowAlignment = 1;
       DxvkBufferSlice copySrcSlice;
       if (pSrcTexture->DoesStagingBufferUploads(SrcSubresource)) {
@@ -4492,7 +4493,9 @@ namespace dxvk {
       } else {
         const DxvkBufferSliceHandle srcSlice = pSrcTexture->GetMappedSlice(SrcSubresource);
         copySrcSlice = DxvkBufferSlice(pSrcTexture->GetBuffer(SrcSubresource), copySrcOffset, srcSlice.length);
-        rowAlignment = pitch; // row alignment can act as the pitch parameter
+        // row/slice alignment can act as the pitch parameter
+        rowAlignment = pitch;
+        sliceAlignment = srcTexLevelExtentBlockCount.height * pitch;
       }
 
       EmitCs([
@@ -4501,13 +4504,14 @@ namespace dxvk {
         cDstLayers      = dstLayers,
         cDstLevelExtent = alignedExtent,
         cOffset         = alignedDestOffset,
-        cRowAlignment   = rowAlignment
+        cRowAlignment   = rowAlignment,
+        cSliceAlignment = sliceAlignment
       ] (DxvkContext* ctx) {
         ctx->copyBufferToImage(
           cDstImage,  cDstLayers,
           cOffset, cDstLevelExtent,
           cSrcSlice.buffer(), cSrcSlice.offset(),
-          cRowAlignment, 0);
+          cRowAlignment, cSliceAlignment);
       });
 
       TrackTextureMappingBufferSequenceNumber(pSrcTexture, SrcSubresource);
