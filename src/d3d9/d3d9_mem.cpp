@@ -8,6 +8,23 @@
 namespace dxvk {
 
 #if defined(D3D9_USE_MEM_FILE_FOR_MANAGED) || defined(D3D9_USE_MEM_FILE_FOR_SYSTEMMEM)
+#define DM(...)                                                         \
+  {                                                                            \
+    char cad[512];                                                             \
+    sprintf(cad, __VA_ARGS__);                                                 \
+    OutputDebugString(cad);                                                    \
+  }
+float
+GetVirtualSizeMb()
+{
+  MEMORYSTATUSEX statex;
+
+  statex.dwLength = sizeof(statex);
+
+  GlobalMemoryStatusEx(&statex);
+  return (statex.ullTotalVirtual - statex.ullAvailVirtual) / 1024.0f / 1024.0f;
+}
+
   D3D9Memory D3D9MemoryAllocator::Alloc(uint32_t Size) {
     std::lock_guard<dxvk::mutex> lock(m_mutex);
 
@@ -82,7 +99,7 @@ namespace dxvk {
 
   D3D9MemoryChunk::D3D9MemoryChunk(D3D9MemoryAllocator* Allocator, uint32_t Size)
     : m_allocator(Allocator), m_size(Size) {
-    m_mapping = CreateFileMappingA(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE | SEC_COMMIT, 0, Size, nullptr);
+    m_mapping = CreateFileMappingA(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE/* | SEC_COMMIT*/, 0, Size, nullptr);
     m_freeRanges.push_back({ 0, Size });
   }
 
@@ -90,7 +107,9 @@ namespace dxvk {
     std::lock_guard<dxvk::mutex> lock(m_mutex);
 
     if (m_ptr != nullptr) {
+      DM("Before unmap: %.3f MB\n", GetVirtualSizeMb());
       UnmapViewOfFile(m_ptr);
+      DM("After unmap: %.3f MB\n", GetVirtualSizeMb());
     }
     CloseHandle(m_mapping);
   }
@@ -101,7 +120,9 @@ namespace dxvk {
 
     if (m_mapCounter == 1) {
       m_allocator->NotifyMapped(m_size);
+      DM("Before map: %.3f MB\n", GetVirtualSizeMb());
       m_ptr = MapViewOfFile(m_mapping, FILE_MAP_ALL_ACCESS, 0, 0, m_size);
+      DM("After map: %.3f MB\n", GetVirtualSizeMb());
     }
   }
 
@@ -111,7 +132,9 @@ namespace dxvk {
 
     if (m_mapCounter == 0) {
       m_allocator->NotifyUnmapped(m_size);
+      DM("Before unmap: %.3f MB\n", GetVirtualSizeMb());
       UnmapViewOfFile(m_ptr);
+      DM("After unmap: %.3f MB\n", GetVirtualSizeMb());
       m_ptr = nullptr;
     }
   }

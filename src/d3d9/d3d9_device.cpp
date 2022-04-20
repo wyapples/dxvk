@@ -7418,7 +7418,7 @@ namespace dxvk {
     if (m_d3d9Options.unmapDelay == 0)
       return;
 
-    const bool force = m_memoryAllocator.MappedMemory() > 512 << 20;
+    const bool force = m_memoryAllocator.MappedMemory() > 64 << 20;
     for (auto iter = m_mappedTextures.begin(); iter != m_mappedTextures.end();) {
       const bool mappingBufferUnused = (m_frameCounter - (*iter)->GetMappingFrame() > uint32_t(m_d3d9Options.unmapDelay) || force) && !(*iter)->IsAnySubresourceLocked();
       if (!mappingBufferUnused) {
