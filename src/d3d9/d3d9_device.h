@@ -1294,7 +1294,7 @@ namespace dxvk {
 
     uint64_t                        m_frameCounter = 0;
 
-#if defined(D3D9_USE_MEM_FILE_FOR_MANAGED) || defined(D3D9_USE_MEM_FILE_FOR_SYSTEMMEM)
+#ifdef D3D9_ALLOW_UNMAPPING
     std::unordered_set<D3D9CommonTexture*> m_mappedTextures;
 #endif
 

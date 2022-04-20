@@ -7386,8 +7386,8 @@ namespace dxvk {
     // Will only be called inside the device lock
     void *ptr = pTexture->GetLockingData(Subresource);
 
-#if defined(D3D9_USE_MEM_FILE_FOR_MANAGED) || defined(D3D9_USE_MEM_FILE_FOR_SYSTEMMEM)
-    if (pTexture->GetMapMode() == D3D9_COMMON_TEXTURE_MAP_MODE_MANAGED) {
+#ifdef D3D9_ALLOW_UNMAPPING
+    if (pTexture->GetMapMode() == D3D9_COMMON_TEXTURE_MAP_MODE_UNMAPPABLE) {
       m_mappedTextures.insert(pTexture);
       pTexture->SetMappingFrame(m_frameCounter);
     }
@@ -7397,8 +7397,8 @@ namespace dxvk {
   }
 
   void D3D9DeviceEx::TouchMappedTexture(D3D9CommonTexture* pTexture) {
-#if defined(D3D9_USE_MEM_FILE_FOR_MANAGED) || defined(D3D9_USE_MEM_FILE_FOR_SYSTEMMEM)
-    if (pTexture->GetMapMode() != D3D9_COMMON_TEXTURE_MAP_MODE_MANAGED)
+#ifdef D3D9_ALLOW_UNMAPPING
+    if (pTexture->GetMapMode() != D3D9_COMMON_TEXTURE_MAP_MODE_UNMAPPABLE)
       return;
 
     D3D9DeviceLock lock = LockDevice();
@@ -7407,8 +7407,8 @@ namespace dxvk {
   }
 
   void D3D9DeviceEx::RemoveMappedTexture(D3D9CommonTexture* pTexture) {
-#if defined(D3D9_USE_MEM_FILE_FOR_MANAGED) || defined(D3D9_USE_MEM_FILE_FOR_SYSTEMMEM)
-    if (pTexture->GetMapMode() != D3D9_COMMON_TEXTURE_MAP_MODE_MANAGED)
+#ifdef D3D9_ALLOW_UNMAPPING
+    if (pTexture->GetMapMode() != D3D9_COMMON_TEXTURE_MAP_MODE_UNMAPPABLE)
       return;
 
     D3D9DeviceLock lock = LockDevice();
@@ -7418,7 +7418,7 @@ namespace dxvk {
 
   void D3D9DeviceEx::UnmapTextures() {
     // Will only be called inside the device lock
-#if defined(D3D9_USE_MEM_FILE_FOR_MANAGED) || defined(D3D9_USE_MEM_FILE_FOR_SYSTEMMEM)
+#ifdef D3D9_ALLOW_UNMAPPING
     if (m_d3d9Options.unmapDelay == 0)
       return;
 

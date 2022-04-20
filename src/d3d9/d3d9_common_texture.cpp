@@ -505,15 +505,13 @@ namespace dxvk {
     if (m_desc.Format == D3D9Format::NULL_FORMAT)
     return D3D9_COMMON_TEXTURE_MAP_MODE_NONE;
 
-#ifndef D3D9_USE_MEM_FILE_FOR_SYSTEMMEM
+#ifndef D3D9_ALLOW_UNMAPPING
     if (m_desc.Pool == D3DPOOL_SYSTEMMEM || m_desc.Pool == D3DPOOL_SCRATCH)
     return D3D9_COMMON_TEXTURE_MAP_MODE_SYSTEMMEM;
 #else
     if (m_desc.Pool == D3DPOOL_SYSTEMMEM || m_desc.Pool == D3DPOOL_SCRATCH)
-    return D3D9_COMMON_TEXTURE_MAP_MODE_MANAGED;
-#endif
+    return D3D9_COMMON_TEXTURE_MAP_MODE_UNMAPPABLE;
 
-#ifdef D3D9_ALLOW_UNMAPPING
     if (IsManaged() && m_device->GetOptions()->unmapDelay != 0)
         return D3D9_COMMON_TEXTURE_MAP_MODE_UNMAPPABLE;
 #endif
