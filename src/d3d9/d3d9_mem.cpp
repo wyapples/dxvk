@@ -8,12 +8,17 @@
 namespace dxvk {
 
 #if defined(D3D9_USE_MEM_FILE_FOR_MANAGED) || defined(D3D9_USE_MEM_FILE_FOR_SYSTEMMEM)
+
+
 #define DM(...)                                                         \
   {                                                                            \
     char cad[512];                                                             \
     sprintf(cad, __VA_ARGS__);                                                 \
     OutputDebugString(cad);                                                    \
   }
+
+#define DM(...)
+
 float
 GetVirtualSizeMb()
 {
