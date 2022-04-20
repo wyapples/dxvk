@@ -104,7 +104,7 @@ GetVirtualSizeMb()
 
   D3D9MemoryChunk::D3D9MemoryChunk(D3D9MemoryAllocator* Allocator, uint32_t Size)
     : m_allocator(Allocator), m_size(Size) {
-    m_mapping = CreateFileMappingA(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE/* | SEC_COMMIT*/, 0, Size, nullptr);
+    m_mapping = CreateFileMappingA(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE | SEC_COMMIT, 0, Size, nullptr);
     m_freeRanges.push_back({ 0, Size });
   }
 
