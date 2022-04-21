@@ -20,6 +20,13 @@ namespace dxvk {
       m_dirtyRange = D3D9Range(0, m_desc.Size);
   }
 
+  D3D9CommonBuffer::~D3D9CommonBuffer() {
+    if (m_desc.Size != 0)
+      m_parent->ChangeReportedMemory(m_desc.Size);
+
+    m_parent->RemoveMappedBuffer(this);
+  }
+
 
   HRESULT D3D9CommonBuffer::Lock(
           UINT   OffsetToLock,
@@ -58,7 +65,32 @@ namespace dxvk {
   }
 
 
-  Rc<DxvkBuffer> D3D9CommonBuffer::CreateBuffer() const {
+  bool D3D9CommonBuffer::AllocLockingData() {
+    /*if (m_mapMode != D3D9_COMMON_TEXTURE_MAP_MODE_UNMAPPABLE) {
+      return CreateBufferSubresource(Subresource);
+    }*/
+
+    D3D9Memory& memory = m_lockingData;
+    if (likely(memory))
+      return false;
+
+    memory = m_parent->GetAllocator()->Alloc(m_desc.Size);
+    memory.Map();
+    return true;
+  }
+
+  void* D3D9CommonBuffer::GetLockingData() {
+    /*if (m_mapMode != D3D9_COMMON_TEXTURE_MAP_MODE_UNMAPPABLE)
+      return m_mappedSlice.mapPtr;*/
+
+    D3D9Memory& memory = m_lockingData;
+    memory.Map();
+    return memory.Ptr();
+  }
+
+  Rc<DxvkBuffer>
+  D3D9CommonBuffer::CreateBuffer() const
+  {
     DxvkBufferCreateInfo  info;
     info.size   = m_desc.Size;
     info.usage  = 0;
