@@ -5,6 +5,7 @@
 
 #include "d3d9_device_child.h"
 #include "d3d9_format.h"
+#include "d3d9_mem.h"
 
 namespace dxvk {
 
@@ -13,7 +14,8 @@ namespace dxvk {
    */
   enum D3D9_COMMON_BUFFER_MAP_MODE {
     D3D9_COMMON_BUFFER_MAP_MODE_BUFFER,
-    D3D9_COMMON_BUFFER_MAP_MODE_DIRECT
+    D3D9_COMMON_BUFFER_MAP_MODE_DIRECT,
+    D3D9_COMMON_BUFFER_MAP_MODE_BUFFER_UNMAPPABLE,
   };
 
   /**
@@ -77,6 +79,8 @@ namespace dxvk {
     D3D9CommonBuffer(
             D3D9DeviceEx*      pDevice,
       const D3D9_BUFFER_DESC*  pDesc);
+    
+    ~D3D9CommonBuffer();
 
     HRESULT Lock(
             UINT   OffsetToLock,
@@ -90,9 +94,11 @@ namespace dxvk {
     * \brief Determine the mapping mode of the buffer, (ie. direct mapping or backed)
     */
     inline D3D9_COMMON_BUFFER_MAP_MODE DetermineMapMode(const D3D9Options* options) const {
-      return (m_desc.Pool == D3DPOOL_DEFAULT && (m_desc.Usage & (D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY)) && options->allowDirectBufferMapping)
+      // TODO_GTR2: force false.
+
+      return /* (m_desc.Pool == D3DPOOL_DEFAULT && (m_desc.Usage & (D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY)) && options->allowDirectBufferMapping)
         ? D3D9_COMMON_BUFFER_MAP_MODE_DIRECT
-        : D3D9_COMMON_BUFFER_MAP_MODE_BUFFER;
+        : */D3D9_COMMON_BUFFER_MAP_MODE_BUFFER;
     }
 
     /**
@@ -184,7 +190,7 @@ namespace dxvk {
      */
     inline bool NeedsUpload() { return m_desc.Pool != D3DPOOL_DEFAULT && !m_dirtyRange.IsDegenerate(); }
 
-    inline bool DoesStagingBufferUploads() const { return m_uploadUsingStaging; }
+    inline bool DoesStagingBufferUploads() const { return m_mapMode == D3D9_COMMON_BUFFER_MAP_MODE_BUFFER_UNMAPPABLE ||  m_uploadUsingStaging; }
 
     inline void EnableStagingBufferUploads() {
       if (GetMapMode() != D3D9_COMMON_BUFFER_MAP_MODE_BUFFER)
@@ -192,6 +198,9 @@ namespace dxvk {
 
       m_uploadUsingStaging = true;
     }
+
+    void SetMappingFrame(uint64_t Frame) { m_mappingFrame = Frame; }
+    uint64_t GetMappingFrame() const { return m_mappingFrame; }
 
     void PreLoad();
 
@@ -220,6 +229,18 @@ namespace dxvk {
     uint64_t GetMappingBufferSequenceNumber() const {
       return HasSequenceNumber() ? m_seq
         : DxvkCsThread::SynchronizeAll;
+    }
+
+    bool AllocLockingData();
+    void* GetLockingData();
+
+    void UnmapLockingData()
+    {
+      m_lockingData.Unmap();
+      /*const uint32_t subresources = CountSubresources();
+      for (uint32_t i = 0; i < subresources; i++) {
+        m_lockingData[i].Unmap();
+      }*/
     }
 
   private:
@@ -251,13 +272,16 @@ namespace dxvk {
 
     DxvkBufferSliceHandle       m_sliceHandle;
 
+    D3D9Memory                  m_lockingData;
+
     D3D9Range                   m_dirtyRange;
     D3D9Range                   m_gpuReadingRange;
 
     uint32_t                    m_lockCount = 0;
 
     uint64_t                    m_seq = 0ull;
-
+    
+    uint64_t                    m_mappingFrame = 0ull;
   };
 
 }

@@ -11,13 +11,19 @@ namespace dxvk {
     : m_parent ( pDevice ), m_desc ( *pDesc ),
       m_mapMode(DetermineMapMode(pDevice->GetOptions())) {
     m_buffer = CreateBuffer();
-    if (m_mapMode == D3D9_COMMON_BUFFER_MAP_MODE_BUFFER)
+    if (m_mapMode == D3D9_COMMON_BUFFER_MAP_MODE_BUFFER ||
+      m_mapMode == D3D9_COMMON_BUFFER_MAP_MODE_BUFFER_UNMAPPABLE)
       m_stagingBuffer = CreateStagingBuffer();
 
     m_sliceHandle = GetMapBuffer()->getSliceHandle();
 
     if (m_desc.Pool != D3DPOOL_DEFAULT)
       m_dirtyRange = D3D9Range(0, m_desc.Size);
+  }
+
+  D3D9CommonBuffer::~D3D9CommonBuffer() {
+    // TODO_MMF:
+    //m_parent->RemoveMappedTexture(this);
   }
 
 
