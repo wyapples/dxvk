@@ -64,7 +64,21 @@ namespace dxvk {
   }
 
 
-  Rc<DxvkBuffer> D3D9CommonBuffer::CreateBuffer() const {
+  bool
+  D3D9CommonBuffer::AllocLockingData()
+  {
+    return false;
+  }
+
+  void*
+  D3D9CommonBuffer::GetLockingData()
+  {
+    return nullptr;
+  }
+
+  Rc<DxvkBuffer>
+  D3D9CommonBuffer::CreateBuffer() const
+  {
     DxvkBufferCreateInfo  info;
     info.size   = m_desc.Size;
     info.usage  = 0;
