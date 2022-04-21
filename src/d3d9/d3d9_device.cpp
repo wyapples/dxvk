@@ -4622,6 +4622,7 @@ namespace dxvk {
     if ((desc.Pool == D3DPOOL_DEFAULT || !(Flags & D3DLOCK_NO_DIRTY_UPDATE)) && !(Flags & D3DLOCK_READONLY))
       pResource->DirtyRange().Conjoin(lockRange);
 
+    Rc<DxvkBuffer> mappingBuffer = pResource->GetBuffer<D3D9_COMMON_BUFFER_TYPE_MAPPING>();
     const bool usesStagingBuffer = pResource->DoesStagingBufferUploads();
 
     if (Flags & D3DLOCK_DISCARD && !usesStagingBuffer) {
@@ -4629,7 +4630,6 @@ namespace dxvk {
       // Allocate a new backing slice for the buffer and set
       // it as the 'new' mapped slice. This assumes that the
       // only way to invalidate a buffer is by mapping it.
-      Rc<DxvkBuffer> mappingBuffer = pResource->GetBuffer<D3D9_COMMON_BUFFER_TYPE_MAPPING>();
 
       DxvkBufferSliceHandle physSlice = pResource->DiscardMapSlice();
 

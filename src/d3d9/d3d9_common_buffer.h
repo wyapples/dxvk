@@ -95,6 +95,7 @@ namespace dxvk {
     */
     inline D3D9_COMMON_BUFFER_MAP_MODE DetermineMapMode(const D3D9Options* options) const {
       // TODO_GTR2: force false.
+      // TODO_MMF: consider unmapDelay.
 
       return /* (m_desc.Pool == D3DPOOL_DEFAULT && (m_desc.Usage & (D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY)) && options->allowDirectBufferMapping)
         ? D3D9_COMMON_BUFFER_MAP_MODE_DIRECT
