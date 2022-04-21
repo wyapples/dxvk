@@ -11,8 +11,7 @@ namespace dxvk {
     : m_parent ( pDevice ), m_desc ( *pDesc ),
       m_mapMode(DetermineMapMode(pDevice->GetOptions())) {
     m_buffer = CreateBuffer();
-    if (m_mapMode == D3D9_COMMON_BUFFER_MAP_MODE_BUFFER ||
-      m_mapMode == D3D9_COMMON_BUFFER_MAP_MODE_BUFFER_UNMAPPABLE)
+    if (m_mapMode == D3D9_COMMON_BUFFER_MAP_MODE_BUFFER)
       m_stagingBuffer = CreateStagingBuffer();
 
     m_sliceHandle = GetMapBuffer()->getSliceHandle();
@@ -64,12 +63,27 @@ namespace dxvk {
   }
 
 
-  bool D3D9CommonBuffer::AllocLockingData(VkDeviceSize size) {
-    return false;
+  bool D3D9CommonBuffer::AllocLockingData() {
+    /*if (m_mapMode != D3D9_COMMON_TEXTURE_MAP_MODE_UNMAPPABLE) {
+      return CreateBufferSubresource(Subresource);
+    }*/
+
+    D3D9Memory& memory = m_lockingData;
+    if (likely(memory))
+      return false;
+
+    memory = m_parent->GetAllocator()->Alloc(m_desc.Size);
+    memory.Map();
+    return true;
   }
 
   void* D3D9CommonBuffer::GetLockingData() {
-    return nullptr;
+/*    if (m_mapMode != D3D9_COMMON_TEXTURE_MAP_MODE_UNMAPPABLE)
+      return m_mappedSlices[Subresource].mapPtr;*/
+
+    D3D9Memory& memory = m_lockingData;
+    memory.Map();
+    return memory.Ptr();
   }
 
   Rc<DxvkBuffer>

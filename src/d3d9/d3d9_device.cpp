@@ -4624,6 +4624,7 @@ namespace dxvk {
 
     Rc<DxvkBuffer> mappingBuffer = pResource->GetBuffer<D3D9_COMMON_BUFFER_TYPE_MAPPING>();
     const bool usesStagingBuffer = pResource->DoesStagingBufferUploads();
+    void* mapPtr;
 
     if (Flags & D3DLOCK_DISCARD && !usesStagingBuffer) {
       // TODO_MMF: test here.
@@ -4632,6 +4633,7 @@ namespace dxvk {
       // only way to invalidate a buffer is by mapping it.
 
       DxvkBufferSliceHandle physSlice = pResource->DiscardMapSlice();
+      mapPtr = physSlice.mapPtr;
 
       EmitCs([
         cBuffer      = std::move(mappingBuffer),
@@ -4649,8 +4651,12 @@ namespace dxvk {
       // way we don't have to synchronize with the CS thread
       // if the map mode is D3DLOCK_NOOVERWRITE.
       // MAP HERE
-      const bool alloced = pResource->AllocLockingData(0u);
-      //physSlice = pResource->GetMappedSlice();
+#ifndef D3D9_ALLOW_BUFFER_UNMAPPING
+      mapPtr = pResource->Getsl;
+#else
+      const bool alloced = pResource->AllocLockingData();
+      mapPtr = pResource->GetLockingData();
+#endif
 
       // NOOVERWRITE promises that they will not write in a currently used area.
       // Therefore we can skip waiting for these two cases.
@@ -4679,7 +4685,7 @@ namespace dxvk {
       }
     }
 
-    uint8_t* data = reinterpret_cast<uint8_t*>(physSlice.mapPtr);
+    uint8_t* data = reinterpret_cast<uint8_t*>(mapPtr);
     // The offset/size is not clamped to or affected by the desc size.
     data += OffsetToLock;
 
@@ -4702,6 +4708,7 @@ namespace dxvk {
   HRESULT D3D9DeviceEx::FlushBuffer(
         D3D9CommonBuffer*       pResource) {
     auto dstBuffer = pResource->GetBufferSlice<D3D9_COMMON_BUFFER_TYPE_REAL>();
+#ifndef D3D9_ALLOW_UNMAPPING
     auto srcSlice = pResource->GetMappedSlice();
 
     D3D9Range& range = pResource->DirtyRange();
@@ -4715,6 +4722,25 @@ namespace dxvk {
     } else {
       copySrcSlice = DxvkBufferSlice(pResource->GetBuffer<D3D9_COMMON_BUFFER_TYPE_MAPPING>(), range.min, range.max - range.min);
     }
+#else
+    auto mapPtr = pResource->GetLockingData();
+
+    D3D9Range& range = pResource->DirtyRange();
+
+    DxvkBufferSlice copySrcSlice;
+    if (pResource->DoesStagingBufferUploads()) {
+      D3D9BufferSlice slice = AllocTempBuffer<false>(range.max - range.min);
+      copySrcSlice = slice.slice;
+      void* srcData = reinterpret_cast<uint8_t*>(mapPtr) + range.min;
+      memcpy(slice.mapPtr, srcData, range.max - range.min);
+    } else {
+      copySrcSlice =
+        DxvkBufferSlice(pResource->GetBuffer<D3D9_COMMON_BUFFER_TYPE_MAPPING>(),
+                        range.min,
+                        range.max - range.min);
+    }
+
+#endif
 
     EmitCs([
       cDstSlice  = dstBuffer,
@@ -7465,7 +7491,7 @@ namespace dxvk {
     if (m_d3d9Options.unmapDelay == 0)
       return;
 
-    const bool force = m_memoryAllocator.MappedMemory() > 512 << 20;
+    const bool force = m_memoryAllocator.MappedMemory() > 1024 << 20;
     for (auto iter = m_mappedTextures.begin(); iter != m_mappedTextures.end();) {
       const bool mappingBufferUnused = (m_frameCounter - (*iter)->GetMappingFrame() > uint32_t(m_d3d9Options.unmapDelay) || force) && !(*iter)->IsAnySubresourceLocked();
       if (!mappingBufferUnused) {
@@ -7486,9 +7512,10 @@ namespace dxvk {
       return;
 
     // TODO_MMF: IsAnySubresourceLocked ???
-    const bool force = m_memoryAllocator.MappedMemory() > 512 << 20;
+    const bool force = m_memoryAllocator.MappedMemory() > 1024 << 20;
     for (auto iter = m_mappedBuffers.begin(); iter != m_mappedBuffers.end();) {
-      const bool mappingBufferUnused = (m_frameCounter - (*iter)->GetMappingFrame() > uint32_t(m_d3d9Options.unmapDelay) || force)/* && !(*iter)->IsAnySubresourceLocked()*/;
+      //const bool mappingBufferUnused = (m_frameCounter - (*iter)->GetMappingFrame() > uint32_t(m_d3d9Options.unmapDelay) || force)/* && !(*iter)->IsAnySubresourceLocked()*/;
+      const bool mappingBufferUnused = (m_frameCounter - (*iter)->GetMappingFrame() > uint32_t(16) || force)/* && !(*iter)->IsAnySubresourceLocked()*/;
       if (!mappingBufferUnused) {
          iter++;
         continue;
