@@ -70,6 +70,9 @@ namespace dxvk {
   
   
   void DxbcCompiler::processInstruction(const DxbcShaderInstruction& ins) {
+    m_lastOp = m_currOp;
+    m_currOp = ins.op;
+
     switch (ins.opClass) {
       case DxbcInstClass::Declaration:
         return this->emitDcl(ins);
@@ -245,24 +248,24 @@ namespace dxvk {
       m_entryPointInterfaces.data());
     m_module.setDebugName(m_entryPointId, "main");
 
-    DxvkShaderOptions shaderOptions = { };
+    // Create the shader object
+    DxvkShaderCreateInfo info;
+    info.stage = m_programInfo.shaderStage();
+    info.resourceSlotCount = m_resourceSlots.size();
+    info.resourceSlots = m_resourceSlots.data();
+    info.inputMask = m_inputMask;
+    info.outputMask = m_outputMask;
+    info.uniformSize = m_immConstData.size();
+    info.uniformData = m_immConstData.data();
 
-    if (m_moduleInfo.xfb != nullptr) {
-      shaderOptions.rasterizedStream = m_moduleInfo.xfb->rasterizedStream;
+    if (m_moduleInfo.xfb) {
+      info.xfbRasterizedStream = m_moduleInfo.xfb->rasterizedStream;
 
       for (uint32_t i = 0; i < 4; i++)
-        shaderOptions.xfbStrides[i] = m_moduleInfo.xfb->strides[i];
+        info.xfbStrides[i] = m_moduleInfo.xfb->strides[i];
     }
 
-    // Create the shader module object
-    return new DxvkShader(
-      m_programInfo.shaderStage(),
-      m_resourceSlots.size(),
-      m_resourceSlots.data(),
-      m_interfaceSlots,
-      m_module.compile(),
-      shaderOptions,
-      std::move(m_immConstData));
+    return new DxvkShader(info, m_module.compile());
   }
   
   
@@ -378,15 +381,16 @@ namespace dxvk {
     // dcl_indexable_temps has three operands:
     //    (imm0) Array register index (x#)
     //    (imm1) Number of vectors stored in the array
-    //    (imm2) Component count of each individual vector
+    //    (imm2) Component count of each individual vector. This is
+    //    always 4 in fxc-generated binaries and therefore useless.
+    const uint32_t regId = ins.imm[0].u32;
+
     DxbcRegisterInfo info;
     info.type.ctype   = DxbcScalarType::Float32;
-    info.type.ccount  = ins.imm[2].u32;
+    info.type.ccount  = m_analysis->xRegMasks.at(regId).minComponents();
     info.type.alength = ins.imm[1].u32;
     info.sclass       = spv::StorageClassPrivate;
-    
-    const uint32_t regId = ins.imm[0].u32;
-    
+
     if (regId >= m_xRegs.size())
       m_xRegs.resize(regId + 1);
     
@@ -404,7 +408,7 @@ namespace dxvk {
       case DxbcOperandType::InputControlPoint:
         if (m_programInfo.type() != DxbcProgramType::HullShader)
           break;
-        /* fall through */
+        [[fallthrough]];
 
       case DxbcOperandType::Input:
       case DxbcOperandType::Output: {
@@ -682,7 +686,7 @@ namespace dxvk {
       }
 
       // Declare the input slot as defined
-      m_interfaceSlots.inputSlots |= 1u << regIdx;
+      m_inputMask |= 1u << regIdx;
       m_vArrayLength = std::max(m_vArrayLength, regIdx + 1);
     } else if (sv != DxbcSystemValue::None) {
       // Add a new system value mapping if needed
@@ -755,7 +759,7 @@ namespace dxvk {
       m_oRegs.at(regIdx) = { regType, varId };
       
       // Declare the output slot as defined
-      m_interfaceSlots.outputSlots |= 1u << regIdx;
+      m_outputMask |= 1u << regIdx;
     }
   }
   
@@ -1530,7 +1534,8 @@ namespace dxvk {
     const uint32_t*               dwordArray) {
     this->emitDclConstantBufferVar(Icb_BindingSlotId, dwordCount / 4, "icb",
       m_moduleInfo.options.dynamicIndexedConstantBufferAsSsbo);
-    m_immConstData = DxvkShaderConstData(dwordCount, dwordArray);
+    m_immConstData.resize(dwordCount * sizeof(uint32_t));
+    std::memcpy(m_immConstData.data(), dwordArray, m_immConstData.size());
   }
 
 
@@ -1872,7 +1877,7 @@ namespace dxvk {
       case DxbcOpcode::Ne:
       case DxbcOpcode::DNe:
         invert = true;
-        /* fall through */
+        [[fallthrough]];
 
       case DxbcOpcode::Eq:
       case DxbcOpcode::DEq:
@@ -3877,12 +3882,17 @@ namespace dxvk {
     // The source operand must be a 32-bit immediate.
     if (ins.src[0].type != DxbcOperandType::Imm32)
       throw DxvkError("DxbcCompiler: Invalid operand type for 'Case'");
-    
-    // Use the last label allocated for 'case'. The block starting
-    // with that label is guaranteed to be empty unless a previous
-    // 'case' block was not properly closed in the DXBC shader.
+
+    // Use the last label allocated for 'case'.
     DxbcCfgBlockSwitch* block = &m_controlFlowBlocks.back().b_switch;
-    
+
+    if (caseBlockIsFallthrough()) {
+      block->labelCase = m_module.allocateId();
+
+      m_module.opBranch(block->labelCase);
+      m_module.opLabel (block->labelCase);
+    }
+
     DxbcSwitchLabel label;
     label.desc.literal = ins.src[0].imm.u32_1;
     label.desc.labelId = block->labelCase;
@@ -3896,9 +3906,17 @@ namespace dxvk {
      || m_controlFlowBlocks.back().type != DxbcCfgBlockType::Switch)
       throw DxvkError("DxbcCompiler: 'Default' without 'Switch' found");
     
+    DxbcCfgBlockSwitch* block = &m_controlFlowBlocks.back().b_switch;
+
+    if (caseBlockIsFallthrough()) {
+      block->labelCase = m_module.allocateId();
+
+      m_module.opBranch(block->labelCase);
+      m_module.opLabel (block->labelCase);
+    }
+
     // Set the last label allocated for 'case' as the default label.
-    m_controlFlowBlocks.back().b_switch.labelDefault
-      = m_controlFlowBlocks.back().b_switch.labelCase;
+    block->labelDefault = block->labelCase;
   }
   
   
@@ -3910,12 +3928,12 @@ namespace dxvk {
     // Remove the block from the stack, it's closed
     DxbcCfgBlock block = m_controlFlowBlocks.back();
     m_controlFlowBlocks.pop_back();
-    
-    // If no 'default' label was specified, use the last allocated
-    // 'case' label. This is guaranteed to be an empty block unless
-    // a previous 'case' block was not closed properly.
-    if (block.b_switch.labelDefault == 0)
-      block.b_switch.labelDefault = block.b_switch.labelCase;
+
+    if (!block.b_switch.labelDefault) {
+      block.b_switch.labelDefault = caseBlockIsFallthrough()
+        ? block.b_switch.labelBreak
+        : block.b_switch.labelCase;
+    }
     
     // Close the current 'case' block
     m_module.opBranch(block.b_switch.labelBreak);
@@ -5559,6 +5577,49 @@ namespace dxvk {
 
   DxbcRegisterValue DxbcCompiler::emitRegisterLoadRaw(
     const DxbcRegister&           reg) {
+    if (reg.type == DxbcOperandType::IndexableTemp) {
+      bool doBoundsCheck = reg.idx[1].relReg != nullptr;
+      DxbcRegisterValue vectorId = emitIndexLoad(reg.idx[1]);
+
+      if (doBoundsCheck) {
+        uint32_t boundsCheck = m_module.opULessThan(
+          m_module.defBoolType(), vectorId.id,
+          m_module.constu32(m_xRegs.at(reg.idx[0].offset).alength));
+
+        // Kind of ugly to have an empty else block here but there's no
+        // way for us to know the current block ID for the phi below
+        DxbcConditional cond;
+        cond.labelIf   = m_module.allocateId();
+        cond.labelElse = m_module.allocateId();
+        cond.labelEnd  = m_module.allocateId();
+
+        m_module.opSelectionMerge(cond.labelEnd, spv::SelectionControlMaskNone);
+        m_module.opBranchConditional(boundsCheck, cond.labelIf, cond.labelElse);
+
+        m_module.opLabel(cond.labelIf);
+
+        DxbcRegisterValue returnValue = emitValueLoad(emitGetOperandPtr(reg));
+
+        m_module.opBranch(cond.labelEnd);
+        m_module.opLabel (cond.labelElse);
+
+        DxbcRegisterValue zeroValue = emitBuildZeroVector(returnValue.type);
+
+        m_module.opBranch(cond.labelEnd);
+        m_module.opLabel (cond.labelEnd);
+
+        std::array<SpirvPhiLabel, 2> phiLabels = {{
+          { returnValue.id, cond.labelIf   },
+          { zeroValue.id,   cond.labelElse },
+        }};
+
+        returnValue.id = m_module.opPhi(
+          getVectorTypeId(returnValue.type),
+          phiLabels.size(), phiLabels.data());
+        return returnValue;
+      }
+    }
+
     return emitValueLoad(emitGetOperandPtr(reg));
   }
   
@@ -5705,23 +5766,30 @@ namespace dxvk {
     const DxbcRegister&           reg,
           DxbcRegisterValue       value) {
     if (reg.type == DxbcOperandType::IndexableTemp) {
+      bool doBoundsCheck = reg.idx[1].relReg != nullptr;
       DxbcRegisterValue vectorId = emitIndexLoad(reg.idx[1]);
-      uint32_t boundsCheck = m_module.opULessThan(
-        m_module.defBoolType(), vectorId.id,
-        m_module.constu32(m_xRegs.at(reg.idx[0].offset).alength));
-      
-      DxbcConditional cond;
-      cond.labelIf  = m_module.allocateId();
-      cond.labelEnd = m_module.allocateId();
-      
-      m_module.opSelectionMerge(cond.labelEnd, spv::SelectionControlMaskNone);
-      m_module.opBranchConditional(boundsCheck, cond.labelIf, cond.labelEnd);
-      
-      m_module.opLabel(cond.labelIf);
-      emitValueStore(getIndexableTempPtr(reg, vectorId), value, reg.mask);
-      
-      m_module.opBranch(cond.labelEnd);
-      m_module.opLabel (cond.labelEnd);
+
+      if (doBoundsCheck) {
+        uint32_t boundsCheck = m_module.opULessThan(
+          m_module.defBoolType(), vectorId.id,
+          m_module.constu32(m_xRegs.at(reg.idx[0].offset).alength));
+        
+        DxbcConditional cond;
+        cond.labelIf  = m_module.allocateId();
+        cond.labelEnd = m_module.allocateId();
+        
+        m_module.opSelectionMerge(cond.labelEnd, spv::SelectionControlMaskNone);
+        m_module.opBranchConditional(boundsCheck, cond.labelIf, cond.labelEnd);
+        
+        m_module.opLabel(cond.labelIf);
+
+        emitValueStore(getIndexableTempPtr(reg, vectorId), value, reg.mask);
+
+        m_module.opBranch(cond.labelEnd);
+        m_module.opLabel (cond.labelEnd);
+      } else {
+        emitValueStore(getIndexableTempPtr(reg, vectorId), value, reg.mask);
+      }
     } else {
       emitValueStore(emitGetOperandPtr(reg), value, reg.mask);
     }
@@ -7801,6 +7869,14 @@ namespace dxvk {
 
     return result;
   }
+
+  bool DxbcCompiler::caseBlockIsFallthrough() const {
+    return m_lastOp != DxbcOpcode::Case
+        && m_lastOp != DxbcOpcode::Default
+        && m_lastOp != DxbcOpcode::Break
+        && m_lastOp != DxbcOpcode::Ret;
+  }
+
 
   uint32_t DxbcCompiler::getScalarTypeId(DxbcScalarType type) {
     if (type == DxbcScalarType::Float64)

@@ -329,23 +329,44 @@ namespace dxvk {
           VkDeviceSize          offset,
           VkDeviceSize          length,
           uint32_t              value) {
-    this->spillRenderPass(true);
-    
-    length = align(length, sizeof(uint32_t));
-    auto slice = buffer->getSliceHandle(offset, length);
+    bool replaceBuffer = this->tryInvalidateDeviceLocalBuffer(buffer, length);
+    auto bufferSlice = buffer->getSliceHandle(offset, align(length, sizeof(uint32_t)));
 
-    if (m_execBarriers.isBufferDirty(slice, DxvkAccess::Write))
-      m_execBarriers.recordCommands(m_cmd);
+    if (!replaceBuffer) {
+      this->spillRenderPass(true);
     
-    m_cmd->cmdFillBuffer(DxvkCmdBuffer::ExecBuffer,
-      slice.handle, slice.offset, slice.length, value);
-    
-    m_execBarriers.accessBuffer(slice,
+      if (m_execBarriers.isBufferDirty(bufferSlice, DxvkAccess::Write))
+        m_execBarriers.recordCommands(m_cmd);
+    }
+
+    DxvkCmdBuffer cmdBuffer = replaceBuffer
+      ? DxvkCmdBuffer::InitBuffer
+      : DxvkCmdBuffer::ExecBuffer;
+
+    if (length > sizeof(value)) {
+      m_cmd->cmdFillBuffer(cmdBuffer,
+        bufferSlice.handle,
+        bufferSlice.offset,
+        bufferSlice.length,
+        value);
+    } else {
+      m_cmd->cmdUpdateBuffer(cmdBuffer,
+        bufferSlice.handle,
+        bufferSlice.offset,
+        bufferSlice.length,
+        &value);
+    }
+
+    auto& barriers = replaceBuffer
+      ? m_initBarriers
+      : m_execBarriers;
+
+    barriers.accessBuffer(bufferSlice,
       VK_PIPELINE_STAGE_TRANSFER_BIT,
       VK_ACCESS_TRANSFER_WRITE_BIT,
       buffer->info().stages,
       buffer->info().access);
-    
+
     m_cmd->trackResource<DxvkAccess::Write>(buffer);
   }
   
@@ -4630,7 +4651,7 @@ namespace dxvk {
   
   
   void DxvkContext::updateTransformFeedbackBuffers() {
-    auto gsOptions = m_state.gp.shaders.gs->shaderOptions();
+    const auto& gsInfo = m_state.gp.shaders.gs->info();
 
     VkBuffer     xfbBuffers[MaxNumXfbBuffers];
     VkDeviceSize xfbOffsets[MaxNumXfbBuffers];
@@ -4648,7 +4669,7 @@ namespace dxvk {
       
       if (physSlice.handle != VK_NULL_HANDLE) {
         const Rc<DxvkBuffer>& buffer = m_state.xfb.buffers[i].buffer();
-        buffer->setXfbVertexStride(gsOptions.xfbStrides[i]);
+        buffer->setXfbVertexStride(gsInfo.xfbStrides[i]);
         
         m_cmd->trackResource<DxvkAccess::Write>(buffer);
       }

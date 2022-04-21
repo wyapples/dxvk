@@ -135,14 +135,14 @@ namespace dxvk {
   Rc<DxvkImage> DxvkDevice::createImage(
     const DxvkImageCreateInfo&  createInfo,
           VkMemoryPropertyFlags memoryType) {
-    return new DxvkImage(m_vkd, createInfo, m_objects.memoryManager(), memoryType);
+    return new DxvkImage(this, createInfo, m_objects.memoryManager(), memoryType);
   }
   
   
   Rc<DxvkImage> DxvkDevice::createImageFromVkImage(
     const DxvkImageCreateInfo&  createInfo,
           VkImage               image) {
-    return new DxvkImage(m_vkd, createInfo, image);
+    return new DxvkImage(this, createInfo, image);
   }
   
   Rc<DxvkImageView> DxvkDevice::createImageView(
@@ -155,19 +155,6 @@ namespace dxvk {
   Rc<DxvkSampler> DxvkDevice::createSampler(
     const DxvkSamplerCreateInfo&  createInfo) {
     return new DxvkSampler(this, createInfo);
-  }
-  
-  
-  Rc<DxvkShader> DxvkDevice::createShader(
-          VkShaderStageFlagBits     stage,
-          uint32_t                  slotCount,
-    const DxvkResourceSlot*         slotInfos,
-    const DxvkInterfaceSlots&       iface,
-    const SpirvCodeBuffer&          code) {
-    return new DxvkShader(stage,
-      slotCount, slotInfos, iface, code,
-      DxvkShaderOptions(),
-      DxvkShaderConstData());
   }
   
   
