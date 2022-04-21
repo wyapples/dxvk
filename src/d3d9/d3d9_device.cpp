@@ -2657,9 +2657,10 @@ namespace dxvk {
         GetPixelShaderPermutation());
     }
 
-    // TODO_MMF: I think this will be broken, need advice
+    // TODO_MMF: I think this will be broken, need advice.  Luckily this is not hit in GTR2.
     if (dst->GetMapMode() == D3D9_COMMON_BUFFER_MAP_MODE_BUFFER
       || dst->GetMapMode() == D3D9_COMMON_BUFFER_MAP_MODE_BUFFER_UNMAPPABLE) {
+      _ASSERT(false);
       uint32_t copySize = VertexCount * decl->GetSize();
 
       EmitCs([
@@ -7490,7 +7491,6 @@ namespace dxvk {
  	d3d9_dxvk.dll!dxvk::D3D9CapturableState::~D3D9CapturableState() Line 18	C++
  	d3d9_dxvk.dll!dxvk::Direct3DState9::~Direct3DState9()	C++
  	d3d9_dxvk.dll!dxvk::D3D9DeviceEx::~D3D9DeviceEx() Line 159	C++
-
     */
 
     if (!g_shuttingDown) {
