@@ -242,8 +242,7 @@ namespace dxvk {
     bool AllocLockingData();
     void* GetLockingData();
 
-    void UnmapLockingData()
-    {
+    void UnmapLockingData() {
       // TODO_MMF:
       m_lockingData.Unmap();
       /*const uint32_t subresources = CountSubresources();

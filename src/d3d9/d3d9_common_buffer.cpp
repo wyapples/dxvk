@@ -22,6 +22,11 @@ namespace dxvk {
 
   D3D9CommonBuffer::~D3D9CommonBuffer() {
     // TODO_MMF:
+    if (m_desc.Size != 0)
+      m_parent->ChangeReportedMemory(m_desc.Size);
+
+    m_parent->RemoveMappedBuffer(this);
+
     //m_parent->RemoveMappedTexture(this);
   }
 
