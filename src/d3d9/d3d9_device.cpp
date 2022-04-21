@@ -7471,6 +7471,7 @@ namespace dxvk {
       return;
 
     /*
+  
   TODO_MMF:
   Crash on shutdown, no idea why.  So add a workaround.
 	d3d9_dxvk.dll!std::_Hash<std::_Uset_traits<dxvk::D3D9CommonBuffer *,std::_Uhash_compare<dxvk::D3D9CommonBuffer *,std::hash<dxvk::D3D9CommonBuffer *>,std::equal_to<dxvk::D3D9CommonBuffer *>>,std::allocator<dxvk::D3D9CommonBuffer *>,0>>::_Find_last<dxvk::D3D9CommonBuffer *>(dxvk::D3D9CommonBuffer * const & _Keyval, const unsigned int _Hashval) Line 1655	C++
