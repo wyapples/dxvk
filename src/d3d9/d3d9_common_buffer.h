@@ -7,10 +7,6 @@
 #include "d3d9_format.h"
 #include "d3d9_mem.h"
 
-#ifdef D3D9_ALLOW_UNMAPPING
-#define D3D9_ALLOW_BUFFER_UNMAPPING
-#endif
-
 namespace dxvk {
 
   /**
@@ -99,14 +95,16 @@ namespace dxvk {
     */
     inline D3D9_COMMON_BUFFER_MAP_MODE DetermineMapMode(const D3D9Options* options) const {
       // TODO_GTR2: force false.
-      // TODO_MMF: consider unmapDelay.
-#ifndef D3D9_ALLOW_BUFFER_UNMAPPING
-      return (m_desc.Pool == D3DPOOL_DEFAULT && (m_desc.Usage & (D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY)) && options->allowDirectBufferMapping)
+      auto mm = (m_desc.Pool == D3DPOOL_DEFAULT && (m_desc.Usage & (D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY)) && options->allowDirectBufferMapping)
         ? D3D9_COMMON_BUFFER_MAP_MODE_DIRECT
         : D3D9_COMMON_BUFFER_MAP_MODE_BUFFER;
-#else
-      return D3D9_COMMON_BUFFER_MAP_MODE_BUFFER_UNMAPPABLE;
+
+#ifdef D3D9_ALLOW_UNMAPPING
+      if (mm == D3D9_COMMON_BUFFER_MAP_MODE_BUFFER && options->unmapDelay != 0)
+        mm = D3D9_COMMON_BUFFER_MAP_MODE_BUFFER_UNMAPPABLE;
 #endif
+
+      return mm;
     }
 
     /**

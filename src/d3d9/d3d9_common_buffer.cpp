@@ -21,13 +21,10 @@ namespace dxvk {
   }
 
   D3D9CommonBuffer::~D3D9CommonBuffer() {
-    // TODO_MMF:
     if (m_desc.Size != 0)
       m_parent->ChangeReportedMemory(m_desc.Size);
 
     m_parent->RemoveMappedBuffer(this);
-
-    //m_parent->RemoveMappedTexture(this);
   }
 
 
@@ -83,8 +80,8 @@ namespace dxvk {
   }
 
   void* D3D9CommonBuffer::GetLockingData() {
-/*    if (m_mapMode != D3D9_COMMON_TEXTURE_MAP_MODE_UNMAPPABLE)
-      return m_mappedSlices[Subresource].mapPtr;*/
+    /*if (m_mapMode != D3D9_COMMON_TEXTURE_MAP_MODE_UNMAPPABLE)
+      return m_mappedSlice.mapPtr;*/
 
     D3D9Memory& memory = m_lockingData;
     memory.Map();

@@ -2660,7 +2660,7 @@ namespace dxvk {
     // TODO_MMF: I think this will be broken, need advice.  Luckily this is not hit in GTR2.
     if (dst->GetMapMode() == D3D9_COMMON_BUFFER_MAP_MODE_BUFFER
       || dst->GetMapMode() == D3D9_COMMON_BUFFER_MAP_MODE_BUFFER_UNMAPPABLE) {
-      _ASSERT(false);
+      //_ASSERT(false);
       uint32_t copySize = VertexCount * decl->GetSize();
 
       EmitCs([
@@ -4630,7 +4630,6 @@ namespace dxvk {
     void* mapPtr;
 
     if (Flags & D3DLOCK_DISCARD && !usesStagingBuffer) {
-      // TODO_MMF: test here.
       // Allocate a new backing slice for the buffer and set
       // it as the 'new' mapped slice. This assumes that the
       // only way to invalidate a buffer is by mapping it.
@@ -4654,12 +4653,12 @@ namespace dxvk {
       // way we don't have to synchronize with the CS thread
       // if the map mode is D3DLOCK_NOOVERWRITE.
       // MAP HERE
-#ifndef D3D9_ALLOW_BUFFER_UNMAPPING
-      mapPtr = pResource->GetMappedSlice().mapPtr;
-#else
-      const bool alloced = pResource->AllocLockingData();
-      mapPtr = MapBuffer(pResource);
-#endif
+      if (pResource->GetMapMode() != D3D9_COMMON_BUFFER_MAP_MODE_BUFFER_UNMAPPABLE)
+        mapPtr = pResource->GetMappedSlice().mapPtr;
+      else {
+        pResource->AllocLockingData();
+        mapPtr = MapBuffer(pResource);
+      }
 
       // NOOVERWRITE promises that they will not write in a currently used area.
       // Therefore we can skip waiting for these two cases.
@@ -4712,11 +4711,11 @@ namespace dxvk {
         D3D9CommonBuffer*       pResource) {
     auto dstBuffer = pResource->GetBufferSlice<D3D9_COMMON_BUFFER_TYPE_REAL>();
 
-#ifndef D3D9_ALLOW_BUFFER_UNMAPPING
-    auto srcMapPtr = pResource->GetMappedSlice().mapPtr;
-#else
-    auto srcMapPtr = pResource->GetLockingData();
-#endif
+    void* srcMapPtr;
+    if (pResource->GetMapMode() != D3D9_COMMON_BUFFER_MAP_MODE_BUFFER_UNMAPPABLE)
+      srcMapPtr = pResource->GetMappedSlice().mapPtr;
+    else
+      srcMapPtr = pResource->GetLockingData();
 
     D3D9Range& range = pResource->DirtyRange();
 
