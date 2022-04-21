@@ -2656,7 +2656,8 @@ namespace dxvk {
         GetPixelShaderPermutation());
     }
 
-    if (dst->GetMapMode() == D3D9_COMMON_BUFFER_MAP_MODE_BUFFER) {
+    if (dst->GetMapMode() == D3D9_COMMON_BUFFER_MAP_MODE_BUFFER
+      || dst->GetMapMode() == D3D9_COMMON_BUFFER_MAP_MODE_BUFFER_UNMAPPABLE) {
       uint32_t copySize = VertexCount * decl->GetSize();
 
       EmitCs([
@@ -4741,7 +4742,8 @@ namespace dxvk {
     if (pResource->DecrementLockCount() != 0)
       return D3D_OK;
 
-    if (pResource->GetMapMode() != D3D9_COMMON_BUFFER_MAP_MODE_BUFFER)
+    if (pResource->GetMapMode() != D3D9_COMMON_BUFFER_MAP_MODE_BUFFER &&
+        pResource->GetMapMode() != D3D9_COMMON_BUFFER_MAP_MODE_BUFFER_UNMAPPABLE)
       return D3D_OK;
 
     if (pResource->DirtyRange().IsDegenerate())
