@@ -7420,6 +7420,40 @@ namespace dxvk {
 #endif
   }
 
+  void* D3D9DeviceEx::MapBuffer(D3D9CommonBuffer* pBuffer) {
+    // Will only be called inside the device lock
+    void* ptr = pBuffer->GetLockingData();
+    
+#ifdef D3D9_ALLOW_UNMAPPING
+    if (pBuffer->GetMapMode() == D3D9_COMMON_BUFFER_MAP_MODE_BUFFER_UNMAPPABLE) {
+      m_mappedBuffers.insert(pBuffer);
+      pBuffer->SetMappingFrame(m_frameCounter);
+    }
+#endif
+
+    return ptr;
+  }
+
+  void D3D9DeviceEx::TouchMappedBuffer(D3D9CommonBuffer* pBuffer) {
+#ifdef D3D9_ALLOW_UNMAPPING
+    if (pBuffer->GetMapMode() != D3D9_COMMON_BUFFER_MAP_MODE_BUFFER_UNMAPPABLE)
+      return;
+
+    D3D9DeviceLock lock = LockDevice();
+    pBuffer->SetMappingFrame(m_frameCounter);
+#endif
+  }
+
+  void D3D9DeviceEx::RemoveMappedBuffer(D3D9CommonBuffer* pBuffer) {
+#ifdef D3D9_ALLOW_UNMAPPING
+    if (pBuffer->GetMapMode() != D3D9_COMMON_BUFFER_MAP_MODE_BUFFER_UNMAPPABLE)
+      return;
+
+    D3D9DeviceLock lock = LockDevice();
+    m_mappedBuffers.erase(pBuffer);
+#endif
+  }
+
   void D3D9DeviceEx::UnmapTextures() {
     // Will only be called inside the device lock
 #ifdef D3D9_ALLOW_UNMAPPING
@@ -7438,6 +7472,28 @@ namespace dxvk {
       iter = m_mappedTextures.erase(iter);
     }
 #endif
+  }
+
+  void D3D9DeviceEx::UnmapBuffers() {
+        // Will only be called inside the device lock
+#ifdef D3D9_ALLOW_UNMAPPING
+    if (m_d3d9Options.unmapDelay == 0)
+      return;
+
+    // TODO_MMF: IsAnySubresourceLocked ???
+    const bool force = m_memoryAllocator.MappedMemory() > 512 << 20;
+    for (auto iter = m_mappedBuffers.begin(); iter != m_mappedBuffers.end();) {
+      const bool mappingBufferUnused = (m_frameCounter - (*iter)->GetMappingFrame() > uint32_t(m_d3d9Options.unmapDelay) || force)/* && !(*iter)->IsAnySubresourceLocked()*/;
+      if (!mappingBufferUnused) {
+         iter++;
+        continue;
+      }
+
+      (*iter)->UnmapLockingData();
+      iter = m_mappedBuffers.erase(iter);
+    }
+#endif
+
   }
 
 }

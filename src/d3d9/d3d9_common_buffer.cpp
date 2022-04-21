@@ -64,15 +64,11 @@ namespace dxvk {
   }
 
 
-  bool
-  D3D9CommonBuffer::AllocLockingData()
-  {
+  bool D3D9CommonBuffer::AllocLockingData(VkDeviceSize size) {
     return false;
   }
 
-  void*
-  D3D9CommonBuffer::GetLockingData()
-  {
+  void* D3D9CommonBuffer::GetLockingData() {
     return nullptr;
   }
 

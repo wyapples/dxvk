@@ -937,11 +937,16 @@ namespace dxvk {
     void BumpFrame() {
       m_frameCounter++;
       UnmapTextures();
+      UnmapBuffers();
     }
 
     void* MapTexture(D3D9CommonTexture* pTexture, UINT Subresource);
     void TouchMappedTexture(D3D9CommonTexture* pTexture);
     void RemoveMappedTexture(D3D9CommonTexture* pTexture);
+
+    void* MapBuffer(D3D9CommonBuffer* pBuffer);
+    void TouchMappedBuffer(D3D9CommonBuffer* pBuffer);
+    void RemoveMappedBuffer(D3D9CommonBuffer* pBuffer);
 
   private:
 
@@ -1155,6 +1160,7 @@ namespace dxvk {
       UINT Subresource);
 
     void UnmapTextures();
+    void UnmapBuffers();
 
     uint64_t GetCurrentSequenceNumber();
 
@@ -1296,6 +1302,7 @@ namespace dxvk {
 
 #ifdef D3D9_ALLOW_UNMAPPING
     std::unordered_set<D3D9CommonTexture*> m_mappedTextures;
+    std::unordered_set<D3D9CommonBuffer*> m_mappedBuffers;
 #endif
 
   };

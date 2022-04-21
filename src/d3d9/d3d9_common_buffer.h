@@ -231,7 +231,7 @@ namespace dxvk {
         : DxvkCsThread::SynchronizeAll;
     }
 
-    bool AllocLockingData();
+    bool AllocLockingData(VkDeviceSize size);
     void* GetLockingData();
 
     void UnmapLockingData()
