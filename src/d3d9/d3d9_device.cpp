@@ -4622,15 +4622,16 @@ namespace dxvk {
     if ((desc.Pool == D3DPOOL_DEFAULT || !(Flags & D3DLOCK_NO_DIRTY_UPDATE)) && !(Flags & D3DLOCK_READONLY))
       pResource->DirtyRange().Conjoin(lockRange);
 
-    Rc<DxvkBuffer> mappingBuffer = pResource->GetBuffer<D3D9_COMMON_BUFFER_TYPE_MAPPING>();
+    const bool usesStagingBuffer = pResource->DoesStagingBufferUploads();
 
-    DxvkBufferSliceHandle physSlice;
-
-    if (Flags & D3DLOCK_DISCARD) {
+    if (Flags & D3DLOCK_DISCARD && !usesStagingBuffer) {
+      // TODO_MMF: test here.
       // Allocate a new backing slice for the buffer and set
       // it as the 'new' mapped slice. This assumes that the
       // only way to invalidate a buffer is by mapping it.
-      physSlice = pResource->DiscardMapSlice();
+      Rc<DxvkBuffer> mappingBuffer = pResource->GetBuffer<D3D9_COMMON_BUFFER_TYPE_MAPPING>();
+
+      DxvkBufferSliceHandle physSlice = pResource->DiscardMapSlice();
 
       EmitCs([
         cBuffer      = std::move(mappingBuffer),
@@ -4643,10 +4644,13 @@ namespace dxvk {
       pResource->GPUReadingRange().Clear();
     }
     else {
+
       // Use map pointer from previous map operation. This
       // way we don't have to synchronize with the CS thread
       // if the map mode is D3DLOCK_NOOVERWRITE.
-      physSlice = pResource->GetMappedSlice();
+      // MAP HERE
+      const bool alloced = pResource->AllocLockingData(0u);
+      //physSlice = pResource->GetMappedSlice();
 
       // NOOVERWRITE promises that they will not write in a currently used area.
       // Therefore we can skip waiting for these two cases.
@@ -4658,7 +4662,6 @@ namespace dxvk {
       const bool readOnly = Flags & D3DLOCK_READONLY;
       const bool noOverlap = !pResource->GPUReadingRange().Overlaps(lockRange);
       const bool noOverwrite = Flags & D3DLOCK_NOOVERWRITE;
-      const bool usesStagingBuffer = pResource->DoesStagingBufferUploads();
       const bool directMapping = pResource->GetMapMode() == D3D9_COMMON_BUFFER_MAP_MODE_DIRECT;
       const bool skipWait = (!needsReadback && (usesStagingBuffer || readOnly || (noOverlap && !directMapping))) || noOverwrite;
       if (!skipWait) {
