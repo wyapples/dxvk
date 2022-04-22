@@ -30,6 +30,8 @@
 #pragma fenv_access (on)
 #endif
 
+#include <cassert>
+
 namespace dxvk {
 
   D3D9DeviceEx::D3D9DeviceEx(
@@ -144,6 +146,7 @@ namespace dxvk {
     m_flags.set(D3D9DeviceFlag::DirtyPointScale);
   }
 
+  // TODO_MMF: buffer unmapping shutdown workaround.
   bool g_shuttingDown = false;
   D3D9DeviceEx::~D3D9DeviceEx() {
     g_shuttingDown = true;
@@ -2673,7 +2676,7 @@ namespace dxvk {
     // TODO_MMF: I think this will be broken, need advice.  Luckily this is not hit in GTR2.
     if (dst->GetMapMode() == D3D9_COMMON_BUFFER_MAP_MODE_BUFFER
       || dst->GetMapMode() == D3D9_COMMON_BUFFER_MAP_MODE_BUFFER_UNMAPPABLE) {
-      //_ASSERT(false);
+      assert(false);
       uint32_t copySize = VertexCount * decl->GetSize();
 
       EmitCs([
@@ -4739,10 +4742,7 @@ namespace dxvk {
       void* srcData = reinterpret_cast<uint8_t*>(srcMapPtr) + range.min;
       memcpy(slice.mapPtr, srcData, range.max - range.min);
     } else {
-      copySrcSlice =
-        DxvkBufferSlice(pResource->GetBuffer<D3D9_COMMON_BUFFER_TYPE_MAPPING>(),
-                        range.min,
-                        range.max - range.min);
+      copySrcSlice = DxvkBufferSlice(pResource->GetBuffer<D3D9_COMMON_BUFFER_TYPE_MAPPING>(), range.min, range.max - range.min);
     }
 
     EmitCs([
@@ -7489,9 +7489,7 @@ namespace dxvk {
     if (pBuffer->GetMapMode() != D3D9_COMMON_BUFFER_MAP_MODE_BUFFER_UNMAPPABLE)
       return;
 
-    /*
-  
-  TODO_MMF:
+    /* TODO_MMF:
   Crash on shutdown, no idea why.  So add a workaround.
 	d3d9_dxvk.dll!std::_Hash<std::_Uset_traits<dxvk::D3D9CommonBuffer *,std::_Uhash_compare<dxvk::D3D9CommonBuffer *,std::hash<dxvk::D3D9CommonBuffer *>,std::equal_to<dxvk::D3D9CommonBuffer *>>,std::allocator<dxvk::D3D9CommonBuffer *>,0>>::_Find_last<dxvk::D3D9CommonBuffer *>(dxvk::D3D9CommonBuffer * const & _Keyval, const unsigned int _Hashval) Line 1655	C++
  	d3d9_dxvk.dll!std::_Hash<std::_Uset_traits<dxvk::D3D9CommonBuffer *,std::_Uhash_compare<dxvk::D3D9CommonBuffer *,std::hash<dxvk::D3D9CommonBuffer *>,std::equal_to<dxvk::D3D9CommonBuffer *>>,std::allocator<dxvk::D3D9CommonBuffer *>,0>>::erase(dxvk::D3D9CommonBuffer * const & _Keyval) Line 1240	C++
@@ -7528,7 +7526,8 @@ namespace dxvk {
 
     const bool force = m_memoryAllocator.MappedMemory() > 512 << 20;
     for (auto iter = m_mappedTextures.begin(); iter != m_mappedTextures.end();) {
-      const bool mappingBufferUnused = (m_frameCounter - (*iter)->GetMappingFrame() > uint32_t(m_d3d9Options.unmapDelay) || force) && !(*iter)->IsAnySubresourceLocked();
+      const bool mappingBufferUnused = (m_frameCounter - (*iter)->GetMappingFrame() > uint32_t(m_d3d9Options.unmapDelay) || force)
+        && !(*iter)->IsAnySubresourceLocked();
       if (!mappingBufferUnused) {
          iter++;
         continue;
@@ -7545,6 +7544,7 @@ namespace dxvk {
 #ifdef D3D9_ALLOW_UNMAPPING
     if (m_d3d9Options.unmapDelay == 0)
       return;
+
     const bool force = m_memoryAllocator.MappedMemory() > 512 << 20;
     for (auto iter = m_mappedBuffers.begin(); iter != m_mappedBuffers.end();) {
       const bool mappingBufferUnused = (m_frameCounter - (*iter)->GetMappingFrame() > uint32_t(m_d3d9Options.unmapDelay) || force) 

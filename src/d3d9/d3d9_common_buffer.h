@@ -94,7 +94,6 @@ namespace dxvk {
     * \brief Determine the mapping mode of the buffer, (ie. direct mapping or backed)
     */
     inline D3D9_COMMON_BUFFER_MAP_MODE DetermineMapMode(const D3D9Options* options) const {
-      // TODO_GTR2: force false.
       auto mm = (m_desc.Pool == D3DPOOL_DEFAULT && (m_desc.Usage & (D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY)) && options->allowDirectBufferMapping)
         ? D3D9_COMMON_BUFFER_MAP_MODE_DIRECT
         : D3D9_COMMON_BUFFER_MAP_MODE_BUFFER;
@@ -240,14 +239,7 @@ namespace dxvk {
     bool AllocLockingData();
     void* GetLockingData();
 
-    void UnmapLockingData() {
-      // TODO_MMF:
-      m_lockingData.Unmap();
-      /*const uint32_t subresources = CountSubresources();
-      for (uint32_t i = 0; i < subresources; i++) {
-        m_lockingData[i].Unmap();
-      }*/
-    }
+    void UnmapLockingData() { m_lockingData.Unmap(); }
 
   private:
 

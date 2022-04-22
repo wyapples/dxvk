@@ -7,28 +7,7 @@
 
 namespace dxvk {
 
-
 #ifdef D3D9_ALLOW_UNMAPPING
-
-#define DM(...)                                                         \
-  {                                                                            \
-    char cad[512];                                                             \
-    sprintf(cad, __VA_ARGS__);                                                 \
-    OutputDebugString(cad);                                                    \
-  }
-
-#define DM(...)
-
-float
-GetVirtualSizeMb()
-{
-  MEMORYSTATUSEX statex;
-
-  statex.dwLength = sizeof(statex);
-
-  GlobalMemoryStatusEx(&statex);
-  return (statex.ullTotalVirtual - statex.ullAvailVirtual) / 1024.0f / 1024.0f;
-}
 
   D3D9Memory D3D9MemoryAllocator::Alloc(uint32_t Size) {
     std::lock_guard<dxvk::mutex> lock(m_mutex);
@@ -112,9 +91,7 @@ GetVirtualSizeMb()
     std::lock_guard<dxvk::mutex> lock(m_mutex);
 
     if (m_ptr != nullptr) {
-      DM("Before unmap: %.3f MB\n", GetVirtualSizeMb());
       UnmapViewOfFile(m_ptr);
-      DM("After unmap: %.3f MB\n", GetVirtualSizeMb());
     }
     CloseHandle(m_mapping);
   }
@@ -125,9 +102,7 @@ GetVirtualSizeMb()
 
     if (m_mapCounter == 1) {
       m_allocator->NotifyMapped(m_size);
-      DM("Before map: %.3f MB\n", GetVirtualSizeMb());
       m_ptr = MapViewOfFile(m_mapping, FILE_MAP_ALL_ACCESS, 0, 0, m_size);
-      DM("After map: %.3f MB\n", GetVirtualSizeMb());
     }
   }
 
@@ -137,9 +112,7 @@ GetVirtualSizeMb()
 
     if (m_mapCounter == 0) {
       m_allocator->NotifyUnmapped(m_size);
-      DM("Before unmap: %.3f MB\n", GetVirtualSizeMb());
       UnmapViewOfFile(m_ptr);
-      DM("After unmap: %.3f MB\n", GetVirtualSizeMb());
       m_ptr = nullptr;
     }
   }

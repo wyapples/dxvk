@@ -509,7 +509,8 @@ namespace dxvk {
     if (m_desc.Pool == D3DPOOL_SYSTEMMEM || m_desc.Pool == D3DPOOL_SCRATCH)
     return D3D9_COMMON_TEXTURE_MAP_MODE_SYSTEMMEM;
 #else
-    if (m_desc.Pool == D3DPOOL_SYSTEMMEM || m_desc.Pool == D3DPOOL_SCRATCH)
+    if ((m_desc.Pool == D3DPOOL_SYSTEMMEM || m_desc.Pool == D3DPOOL_SCRATCH)
+      && m_device->GetOptions()->unmapDelay != 0)
     return D3D9_COMMON_TEXTURE_MAP_MODE_UNMAPPABLE;
 
     if (IsManaged() && m_device->GetOptions()->unmapDelay != 0)
