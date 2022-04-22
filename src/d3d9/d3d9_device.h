@@ -945,6 +945,8 @@ namespace dxvk {
     void RemoveMappedTexture(D3D9CommonTexture* pTexture);
 
     void* MapBuffer(D3D9CommonBuffer* pBuffer);
+    // VL: unlike textures, we only consider buffer being used if it was
+    // actually mapped.  Currently that's when buffer is locked.  So, this is dead code.
     void TouchMappedBuffer(D3D9CommonBuffer* pBuffer);
     void RemoveMappedBuffer(D3D9CommonBuffer* pBuffer);
 
