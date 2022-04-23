@@ -7,7 +7,8 @@ namespace dxvk::sync {
   /**
    * \brief Lock-free single-linked list
    */
-#define GTR2_SPECIFIC
+//#define GTR2_SPECIFIC
+// UPDATE: 04/23/2022 - I can't repro regression anymore, so use List from master.
 // TIW: see this issue - https://github.com/doitsujin/dxvk/issues/2505
 // Basically, my current understanding is due to gMotor generating thousands of
 // pipelines and CPU caching effects List from the main branch causes 20% FPS drop.
