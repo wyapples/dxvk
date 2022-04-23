@@ -4668,7 +4668,6 @@ namespace dxvk {
       // Use map pointer from previous map operation. This
       // way we don't have to synchronize with the CS thread
       // if the map mode is D3DLOCK_NOOVERWRITE.
-      // MAP HERE
       if (pResource->GetMapMode() != D3D9_COMMON_BUFFER_MAP_MODE_BUFFER_UNMAPPABLE)
         mapPtr = pResource->GetMappedSlice().mapPtr;
       else {
