@@ -26,8 +26,8 @@ namespace dxvk {
     m_layout = new DxvkPipelineLayout(m_vkd,
       m_slotMapping, VK_PIPELINE_BIND_POINT_GRAPHICS);
     
-    m_vsIn  = m_shaders.vs != nullptr ? m_shaders.vs->interfaceSlots().inputSlots  : 0;
-    m_fsOut = m_shaders.fs != nullptr ? m_shaders.fs->interfaceSlots().outputSlots : 0;
+    m_vsIn  = m_shaders.vs != nullptr ? m_shaders.vs->info().inputMask  : 0;
+    m_fsOut = m_shaders.fs != nullptr ? m_shaders.fs->info().outputMask : 0;
 
     if (m_shaders.gs != nullptr && m_shaders.gs->flags().test(DxvkShaderFlag::HasTransformFeedback))
       m_flags.set(DxvkGraphicsPipelineFlag::HasTransformFeedback);
@@ -63,22 +63,25 @@ namespace dxvk {
   VkPipeline DxvkGraphicsPipeline::getPipelineHandle(
     const DxvkGraphicsPipelineStateInfo& state,
     const DxvkRenderPass*                renderPass) {
-    DxvkGraphicsPipelineInstance* instance = nullptr;
+    DxvkGraphicsPipelineInstance* instance = this->findInstance(state, renderPass);
 
-    { std::lock_guard<sync::Spinlock> lock(m_mutex);
-    
+    if (unlikely(!instance)) {
+      // Exit early if the state vector is invalid
+      if (!this->validatePipelineState(state))
+        return VK_NULL_HANDLE;
+
+      // Prevent other threads from adding new instances and check again
+      std::lock_guard<dxvk::mutex> lock(m_mutex);
       instance = this->findInstance(state, renderPass);
-      
-      if (instance)
-        return instance->pipeline();
-      
-      instance = this->createInstance(state, renderPass);
-    }
-    
-    if (!instance)
-      return VK_NULL_HANDLE;
 
-    this->writePipelineStateToCache(state, renderPass->format());
+      if (!instance) {
+        // Keep pipeline object locked, at worst we're going to stall
+        // a state cache worker and the current thread needs priority.
+        instance = this->createInstance(state, renderPass);
+        this->writePipelineStateToCache(state, renderPass->format());
+      }
+    }
+
     return instance->pipeline();
   }
 
@@ -86,7 +89,13 @@ namespace dxvk {
   void DxvkGraphicsPipeline::compilePipeline(
     const DxvkGraphicsPipelineStateInfo& state,
     const DxvkRenderPass*                renderPass) {
-    std::lock_guard<sync::Spinlock> lock(m_mutex);
+    // Exit early if the state vector is invalid
+    if (!this->validatePipelineState(state))
+      return;
+
+    // Keep the object locked while compiling a pipeline since compiling
+    // similar pipelines concurrently is fragile on some drivers
+    std::lock_guard<dxvk::mutex> lock(m_mutex);
 
     if (!this->findInstance(state, renderPass))
       this->createInstance(state, renderPass);
@@ -96,15 +105,10 @@ namespace dxvk {
   DxvkGraphicsPipelineInstance* DxvkGraphicsPipeline::createInstance(
     const DxvkGraphicsPipelineStateInfo& state,
     const DxvkRenderPass*                renderPass) {
-    // If the pipeline state vector is invalid, don't try
-    // to create a new pipeline, it won't work anyway.
-    if (!this->validatePipelineState(state))
-      return nullptr;
-
-    VkPipeline newPipelineHandle = this->createPipeline(state, renderPass);
+    VkPipeline pipeline = this->createPipeline(state, renderPass);
 
     m_pipeMgr->m_numGraphicsPipelines += 1;
-    return &m_pipelines.emplace_back(state, renderPass, newPipelineHandle);
+    return &(*m_pipelines.emplace(state, renderPass, pipeline));
   }
   
   
@@ -199,15 +203,24 @@ namespace dxvk {
       | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 
     for (uint32_t i = 0; i < MaxNumRenderTargets; i++) {
+      auto formatInfo = imageFormatInfo(passFormat.color[i].format);
       omBlendAttachments[i] = state.omBlend[i].state();
 
-      if (omBlendAttachments[i].colorWriteMask != fullMask) {
-        omBlendAttachments[i].colorWriteMask = util::remapComponentMask(
-          state.omBlend[i].colorWriteMask(), state.omSwizzle[i].mapping());
-      }
-      
-      if ((m_fsOut & (1 << i)) == 0)
+      if (!(m_fsOut & (1 << i)) || !formatInfo) {
         omBlendAttachments[i].colorWriteMask = 0;
+      } else {
+        if (omBlendAttachments[i].colorWriteMask != fullMask) {
+          omBlendAttachments[i].colorWriteMask = util::remapComponentMask(
+            state.omBlend[i].colorWriteMask(), state.omSwizzle[i].mapping());
+        }
+
+        omBlendAttachments[i].colorWriteMask &= formatInfo->componentMask;
+
+        if (omBlendAttachments[i].colorWriteMask == formatInfo->componentMask) {
+          omBlendAttachments[i].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT
+                                               | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+        }
+      }
     }
 
     // Generate per-instance attribute divisors
@@ -225,7 +238,7 @@ namespace dxvk {
     }
 
     int32_t rasterizedStream = m_shaders.gs != nullptr
-      ? m_shaders.gs->shaderOptions().rasterizedStream
+      ? m_shaders.gs->info().xfbRasterizedStream
       : 0;
     
     // Compact vertex bindings so that we can more easily update vertex buffers
@@ -438,10 +451,11 @@ namespace dxvk {
     if (shader == nullptr)
       return DxvkShaderModule();
 
+    const DxvkShaderCreateInfo& shaderInfo = shader->info();
     DxvkShaderModuleCreateInfo info;
 
     // Fix up fragment shader outputs for dual-source blending
-    if (shader->stage() == VK_SHADER_STAGE_FRAGMENT_BIT) {
+    if (shaderInfo.stage == VK_SHADER_STAGE_FRAGMENT_BIT) {
       info.fsDualSrcBlend = state.omBlend[0].blendEnable() && (
         util::isDualSourceBlendFactor(state.omBlend[0].srcColorBlendFactor()) ||
         util::isDualSourceBlendFactor(state.omBlend[0].dstColorBlendFactor()) ||
@@ -450,15 +464,15 @@ namespace dxvk {
     }
 
     // Deal with undefined shader inputs
-    uint32_t consumedInputs = shader->interfaceSlots().inputSlots;
+    uint32_t consumedInputs = shaderInfo.inputMask;
     uint32_t providedInputs = 0;
 
-    if (shader->stage() == VK_SHADER_STAGE_VERTEX_BIT) {
+    if (shaderInfo.stage == VK_SHADER_STAGE_VERTEX_BIT) {
       for (uint32_t i = 0; i < state.il.attributeCount(); i++)
         providedInputs |= 1u << state.ilAttributes[i].location();
-    } else if (shader->stage() != VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT) {
-      auto prevStage = getPrevStageShader(shader->stage());
-      providedInputs = prevStage->interfaceSlots().outputSlots;
+    } else if (shaderInfo.stage != VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT) {
+      auto prevStage = getPrevStageShader(shaderInfo.stage);
+      providedInputs = prevStage->info().outputMask;
     } else {
       // Technically not correct, but this
       // would need a lot of extra care

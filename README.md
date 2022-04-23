@@ -1,3 +1,15 @@
+# About this fork:
+
+This fork contains the following changes:
+* GTR2 specific tweaks for higher framerate.  Might be helpful for other gMotor based/derived DX9 games, but GTR2 is the sole focus of this fork.  Differences vs main repo are marked with GTR2_SPECIFIC symbol.
+* allow DX9->Vulkan OpenVR (Based on Joshua Ashton's work).
+* option to force SGSSAA-like AA.  It's brute force and I suspect can be done much smarter, by appliying sample shading only to some pipelines, I am not yet sure how - suggestions welcome!
+* option to force 32bit float depth buffer.
+
+I am not submitting my stuff to the main repo because I am not exactly a graphics guru and I doubt anyone needs my hacks there (at least no one expressed interest).  That said, if this is useful to anyone, I would greatly appreciate hints and suggestions, especially on how to minimize GPU idle time in VR and applying sample shading AA smarter.  Also, any ideas for further DX9 gMotor specific tweaks are welcome.
+
+Main branch is: vr-dx9-rel
+
 # DXVK
 
 A Vulkan-based translation layer for Direct3D 9/10/11 which allows running 3D applications on Linux using Wine.
@@ -85,8 +97,10 @@ The `DXVK_HUD` environment variable controls a HUD which can display the framera
 - `gpuload`: Shows estimated GPU load. May be inaccurate.
 - `version`: Shows DXVK version.
 - `api`: Shows the D3D feature level used by the application.
+- `cs`: Shows worker thread statistics.
 - `compiler`: Shows shader compiler activity
 - `samplers`: Shows the current number of sampler pairs used *[D3D9 Only]*
+- `managed_mem`: Shows the amount of memory used for D3DPOOL_MANAGED data *[D3D9 Only]*
 - `scale=x`: Scales the HUD by a factor of `x` (e.g. `1.5`)
 
 Additionally, `DXVK_HUD=1` has the same effect as `DXVK_HUD=devinfo,fps`, and `DXVK_HUD=full` enables all available HUD elements.

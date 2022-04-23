@@ -498,8 +498,8 @@ namespace dxvk {
     //////////////////////////////////////////////////
     // Immediate constant buffer. If defined, this is
     // an array of four-component uint32 vectors.
-    uint32_t            m_immConstBuf = 0;
-    DxvkShaderConstData m_immConstData;
+    uint32_t m_immConstBuf = 0;
+    std::vector<char> m_immConstData;
     
     ///////////////////////////////////////////////////
     // Sample pos array. If defined, this iis an array
@@ -524,7 +524,8 @@ namespace dxvk {
     ////////////////////////////////////////////
     // Inter-stage shader interface slots. Also
     // covers vertex input and fragment output.
-    DxvkInterfaceSlots m_interfaceSlots;
+    uint32_t m_inputMask = 0u;
+    uint32_t m_outputMask = 0u;
 
     ///////////////////////////////////
     // Shader-specific data structures
@@ -542,6 +543,9 @@ namespace dxvk {
     //////////////////////
     // Global state stuff
     bool m_precise = true;
+
+    DxbcOpcode m_lastOp = DxbcOpcode::Nop;
+    DxbcOpcode m_currOp = DxbcOpcode::Nop;
 
     /////////////////////////////////////////////////////
     // Shader interface and metadata declaration methods
@@ -1238,7 +1242,9 @@ namespace dxvk {
     DxbcRegisterPointer getIndexableTempPtr(
       const DxbcRegister&           operand,
             DxbcRegisterValue       vectorId);
-    
+
+    bool caseBlockIsFallthrough() const;
+
     ///////////////////////////
     // Type definition methods
     uint32_t getScalarTypeId(

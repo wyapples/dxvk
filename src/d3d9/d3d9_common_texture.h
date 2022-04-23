@@ -3,6 +3,7 @@
 #include "d3d9_format.h"
 #include "d3d9_util.h"
 #include "d3d9_caps.h"
+#include "d3d9_mem.h"
 
 #include "../dxvk/dxvk_device.h"
 
@@ -22,6 +23,7 @@ namespace dxvk {
     D3D9_COMMON_TEXTURE_MAP_MODE_NONE,      ///< No mapping available
     D3D9_COMMON_TEXTURE_MAP_MODE_BACKED,    ///< Mapped image through buffer
     D3D9_COMMON_TEXTURE_MAP_MODE_SYSTEMMEM, ///< Only a buffer - no image
+    D3D9_COMMON_TEXTURE_MAP_MODE_UNMAPPABLE,   ///< Non-Vulkan memory that can be unmapped
   };
   
   /**
@@ -71,7 +73,8 @@ namespace dxvk {
     D3D9CommonTexture(
             D3D9DeviceEx*             pDevice,
       const D3D9_COMMON_TEXTURE_DESC* pDesc,
-            D3DRESOURCETYPE           ResourceType);
+            D3DRESOURCETYPE           ResourceType,
+            HANDLE*                   pSharedHandle);
 
     ~D3D9CommonTexture();
 
@@ -139,6 +142,25 @@ namespace dxvk {
 
       return m_resolveImage;
     }
+
+    /**
+     * \brief Allocates the internal data used for LockRect/LockBox
+     *
+     * This works regardless of the map mode of this texture if necessary
+     * \param [in] Subresource Subresource index
+     * @return Whether it had to be allocated.
+     */
+    bool AllocLockingData(UINT Subresource);
+
+    /**
+     * \brief Returns a pointer to the internal data used for LockRect/LockBox
+     *
+     * This works regardless of the map mode used by this texture
+     * and will map the memory if necessary.
+     * \param [in] Subresource Subresource index
+     * @return Pointer to locking data
+     */
+    void* GetLockingData(UINT Subresource);
 
     const Rc<DxvkBuffer>& GetBuffer(UINT Subresource) {
       return m_buffers[Subresource];
@@ -233,13 +255,20 @@ namespace dxvk {
      */
     bool CreateBufferSubresource(UINT Subresource);
 
+    void UnmapLockingData() {
+      const uint32_t subresources = CountSubresources();
+      for (uint32_t i = 0; i < subresources; i++) {
+        m_lockingData[i].Unmap();
+      }
+    }
+
     /**
      * \brief Destroys a buffer
      * Destroys mapping and staging buffers for a given subresource
      */
     void DestroyBufferSubresource(UINT Subresource) {
       m_buffers[Subresource] = nullptr;
-      SetWrittenByGPU(Subresource, true);
+      SetNeedsReadback(Subresource, true);
     }
 
     bool IsDynamic() const {
@@ -326,11 +355,11 @@ namespace dxvk {
 
     bool IsAnySubresourceLocked() const { return m_locked.any(); }
 
-    void SetWrittenByGPU(UINT Subresource, bool value) { m_wasWrittenByGPU.set(Subresource, value); }
+    void SetNeedsReadback(UINT Subresource, bool value) { m_needsReadback.set(Subresource, value); }
 
-    bool WasWrittenByGPU(UINT Subresource) const { return m_wasWrittenByGPU.get(Subresource); }
+    bool NeedsReachback(UINT Subresource) const { return m_needsReadback.get(Subresource); }
 
-    void MarkAllWrittenByGPU() { m_wasWrittenByGPU.setAll(); }
+    void MarkAllNeedReadback() { m_needsReadback.setAll(); }
 
     void SetReadOnlyLocked(UINT Subresource, bool readOnly) { return m_readOnly.set(Subresource, readOnly); }
 
@@ -377,7 +406,7 @@ namespace dxvk {
     bool NeedsUpload(UINT Subresource) const { return m_needsUpload.get(Subresource); }
     bool NeedsAnyUpload() { return m_needsUpload.any(); }
     void ClearNeedsUpload() { return m_needsUpload.clearAll();  }
-    bool DoesStagingBufferUploads(UINT Subresource) const { return m_uploadUsingStaging.get(Subresource); }
+    bool DoesStagingBufferUploads(UINT Subresource) const { return m_mapMode == D3D9_COMMON_TEXTURE_MAP_MODE_UNMAPPABLE || m_uploadUsingStaging.get(Subresource); }
 
     void EnableStagingBufferUploads(UINT Subresource) {
       m_uploadUsingStaging.set(Subresource, true);
@@ -435,6 +464,45 @@ namespace dxvk {
     static VkImageType GetImageTypeFromResourceType(
             D3DRESOURCETYPE  Dimension);
 
+     /**
+     * \brief Tracks sequence number for a given subresource
+     *
+     * Stores which CS chunk the resource was last used on.
+     * \param [in] Subresource Subresource index
+     * \param [in] Seq Sequence number
+     */
+    void TrackMappingBufferSequenceNumber(UINT Subresource, uint64_t Seq) {
+      if (Subresource < m_seqs.size())
+        m_seqs[Subresource] = Seq;
+    }
+
+    /**
+     * \brief Queries sequence number for a given subresource
+     *
+     * Returns which CS chunk the resource was last used on.
+     * \param [in] Subresource Subresource index
+     * \returns Sequence number for the given subresource
+     */
+    uint64_t GetMappingBufferSequenceNumber(UINT Subresource) {
+      return Subresource < m_seqs.size()
+        ? m_seqs[Subresource]
+        : 0ull;
+    }
+
+    /**
+     * \brief Mip level
+     * \returns Size of packed mip level in bytes
+     */
+    VkDeviceSize GetMipSize(UINT Subresource) const;
+
+    void SetMappingFrame(uint64_t Frame) {
+      m_mappingFrame = Frame;
+    }
+
+    uint64_t GetMappingFrame() const {
+      return m_mappingFrame;
+    }
+
   private:
 
     D3D9DeviceEx*                 m_device;
@@ -447,7 +515,11 @@ namespace dxvk {
     D3D9SubresourceArray<
       Rc<DxvkBuffer>>             m_buffers;
     D3D9SubresourceArray<
-      DxvkBufferSliceHandle>      m_mappedSlices;
+      DxvkBufferSliceHandle>      m_mappedSlices = { };
+    D3D9SubresourceArray<
+      D3D9Memory>                 m_lockingData = { };
+    D3D9SubresourceArray<
+      uint64_t>                   m_seqs = { };
 
     D3D9_VK_FORMAT_MAPPING        m_mapping;
 
@@ -466,7 +538,7 @@ namespace dxvk {
 
     D3D9SubresourceBitset         m_readOnly = { };
 
-    D3D9SubresourceBitset         m_wasWrittenByGPU = { };
+    D3D9SubresourceBitset         m_needsReadback = { };
 
     D3D9SubresourceBitset         m_needsUpload = { };
 
@@ -480,13 +552,9 @@ namespace dxvk {
 
     std::array<D3DBOX, 6>         m_dirtyBoxes;
 
-    /**
-     * \brief Mip level
-     * \returns Size of packed mip level in bytes
-     */
-    VkDeviceSize GetMipSize(UINT Subresource) const;
+    uint64_t                      m_mappingFrame;
 
-    Rc<DxvkImage> CreatePrimaryImage(D3DRESOURCETYPE ResourceType, bool TryOffscreenRT) const;
+    Rc<DxvkImage> CreatePrimaryImage(D3DRESOURCETYPE ResourceType, bool TryOffscreenRT, HANDLE* pSharedHandle) const;
 
     Rc<DxvkImage> CreateResolveImage() const;
 
@@ -502,18 +570,12 @@ namespace dxvk {
             VkFormat              Format,
             VkImageTiling         Tiling) const;
 
-    D3D9_COMMON_TEXTURE_MAP_MODE DetermineMapMode() const {
-      if (m_desc.Format == D3D9Format::NULL_FORMAT)
-        return D3D9_COMMON_TEXTURE_MAP_MODE_NONE;
-
-      if (m_desc.Pool == D3DPOOL_SYSTEMMEM || m_desc.Pool == D3DPOOL_SCRATCH)
-        return D3D9_COMMON_TEXTURE_MAP_MODE_SYSTEMMEM;
-
-      return D3D9_COMMON_TEXTURE_MAP_MODE_BACKED;
-    }
+    D3D9_COMMON_TEXTURE_MAP_MODE DetermineMapMode() const;
 
     VkImageLayout OptimizeLayout(
             VkImageUsageFlags         Usage) const;
+
+    void ExportImageInfo();
 
     static VkImageViewType GetImageViewTypeFromResourceType(
             D3DRESOURCETYPE  Dimension,

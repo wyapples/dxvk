@@ -89,9 +89,9 @@ namespace dxvk {
         image->info().layout,
         VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
       
-      // Maybe needs device wait too
+      // This wait may need to be on all Faces and Mip Levels (2 loops).
       if (waitResourceIdle)
-        m_device->WaitForResource(image, D3DLOCK_READONLY);
+        m_device->WaitForResource(image, tex->GetMappingBufferSequenceNumber(0u), D3DLOCK_READONLY);
 
       return D3D_OK;
     }
@@ -111,7 +111,8 @@ namespace dxvk {
     HRESULT STDMETHODCALLTYPE WaitDeviceIdle()
     {
       m_device->Flush();
-      m_device->SynchronizeCsThread();
+      // Not clear if we need all here, perhaps...
+      m_device->SynchronizeCsThread(DxvkCsThread::SynchronizeAll);
       m_device->GetDXVKDevice()->waitForIdle();
       return D3D_OK;
     }

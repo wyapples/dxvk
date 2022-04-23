@@ -1,9 +1,11 @@
 #pragma once
 
 #include "../dxvk/dxvk_device.h"
+#include "../dxvk/dxvk_cs.h"
 
 #include "d3d9_device_child.h"
 #include "d3d9_format.h"
+#include "d3d9_mem.h"
 
 namespace dxvk {
 
@@ -12,7 +14,8 @@ namespace dxvk {
    */
   enum D3D9_COMMON_BUFFER_MAP_MODE {
     D3D9_COMMON_BUFFER_MAP_MODE_BUFFER,
-    D3D9_COMMON_BUFFER_MAP_MODE_DIRECT
+    D3D9_COMMON_BUFFER_MAP_MODE_DIRECT,
+    D3D9_COMMON_BUFFER_MAP_MODE_BUFFER_UNMAPPABLE,
   };
 
   /**
@@ -76,6 +79,8 @@ namespace dxvk {
     D3D9CommonBuffer(
             D3D9DeviceEx*      pDevice,
       const D3D9_BUFFER_DESC*  pDesc);
+    
+    ~D3D9CommonBuffer();
 
     HRESULT Lock(
             UINT   OffsetToLock,
@@ -88,10 +93,24 @@ namespace dxvk {
     /**
     * \brief Determine the mapping mode of the buffer, (ie. direct mapping or backed)
     */
-    inline D3D9_COMMON_BUFFER_MAP_MODE GetMapMode() const {
-      return (m_desc.Pool == D3DPOOL_DEFAULT && (m_desc.Usage & (D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY)))
+    inline D3D9_COMMON_BUFFER_MAP_MODE DetermineMapMode(const D3D9Options* options) const {
+      auto mm = (m_desc.Pool == D3DPOOL_DEFAULT && (m_desc.Usage & (D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY)) && options->allowDirectBufferMapping)
         ? D3D9_COMMON_BUFFER_MAP_MODE_DIRECT
         : D3D9_COMMON_BUFFER_MAP_MODE_BUFFER;
+
+#ifdef D3D9_ALLOW_UNMAPPING
+      if (mm == D3D9_COMMON_BUFFER_MAP_MODE_BUFFER && options->unmapDelay != 0)
+        mm = D3D9_COMMON_BUFFER_MAP_MODE_BUFFER_UNMAPPABLE;
+#endif
+
+      return mm;
+    }
+
+    /**
+    * \brief Get the mapping mode of the buffer, (ie. direct mapping or backed)
+    */
+    inline D3D9_COMMON_BUFFER_MAP_MODE GetMapMode() const {
+      return m_mapMode;
     }
 
     /**
@@ -155,12 +174,12 @@ namespace dxvk {
     /**
     * \brief Whether or not the buffer was written to by the GPU (in IDirect3DDevice9::ProcessVertices)
     */
-    inline bool WasWrittenByGPU() const     { return m_wasWrittenByGPU; }
+    inline bool NeedsReadback() const     { return m_needsReadback; }
 
     /**
     * \brief Sets whether or not the buffer was written to by the GPU
     */
-    inline void SetWrittenByGPU(bool state) { m_wasWrittenByGPU = state; }
+    inline void SetNeedsReadback(bool state) { m_needsReadback = state; }
 
     inline uint32_t IncrementLockCount() { return ++m_lockCount; }
     inline uint32_t DecrementLockCount() {
@@ -176,7 +195,7 @@ namespace dxvk {
      */
     inline bool NeedsUpload() { return m_desc.Pool != D3DPOOL_DEFAULT && !m_dirtyRange.IsDegenerate(); }
 
-    inline bool DoesStagingBufferUploads() const { return m_uploadUsingStaging; }
+    inline bool DoesStagingBufferUploads() const { return m_mapMode == D3D9_COMMON_BUFFER_MAP_MODE_BUFFER_UNMAPPABLE ||  m_uploadUsingStaging; }
 
     inline void EnableStagingBufferUploads() {
       if (GetMapMode() != D3D9_COMMON_BUFFER_MAP_MODE_BUFFER)
@@ -185,7 +204,42 @@ namespace dxvk {
       m_uploadUsingStaging = true;
     }
 
+    void SetMappingFrame(uint64_t Frame) { m_mappingFrame = Frame; }
+    uint64_t GetMappingFrame() const { return m_mappingFrame; }
+
     void PreLoad();
+
+    bool HasSequenceNumber() const {
+      return m_mapMode != D3D9_COMMON_BUFFER_MAP_MODE_DIRECT;
+    }
+
+     /**
+     * \brief Tracks sequence number
+     *
+     * Stores which CS chunk the resource was last used on.
+     * \param [in] Seq Sequence number
+     */
+    void TrackMappingBufferSequenceNumber(uint64_t Seq) {
+      m_seq = Seq;
+    }
+
+
+    /**
+     * \brief Queries sequence number for a given subresource
+     *
+     * Returns which CS chunk the resource was last used on.
+     * \param [in] Subresource Subresource index
+     * \returns Sequence number for the given subresource
+     */
+    uint64_t GetMappingBufferSequenceNumber() const {
+      return HasSequenceNumber() ? m_seq
+        : DxvkCsThread::SynchronizeAll;
+    }
+
+    bool AllocLockingData();
+    void* GetLockingData();
+
+    void UnmapLockingData() { m_lockingData.Unmap(); }
 
   private:
 
@@ -207,19 +261,25 @@ namespace dxvk {
     D3D9DeviceEx*               m_parent;
     const D3D9_BUFFER_DESC      m_desc;
     DWORD                       m_mapFlags;
-    bool                        m_wasWrittenByGPU = false;
+    bool                        m_needsReadback = false;
     bool                        m_uploadUsingStaging = false;
+    D3D9_COMMON_BUFFER_MAP_MODE m_mapMode;
 
     Rc<DxvkBuffer>              m_buffer;
     Rc<DxvkBuffer>              m_stagingBuffer;
 
     DxvkBufferSliceHandle       m_sliceHandle;
 
+    D3D9Memory                  m_lockingData;
+
     D3D9Range                   m_dirtyRange;
     D3D9Range                   m_gpuReadingRange;
 
     uint32_t                    m_lockCount = 0;
 
+    uint64_t                    m_seq = 0ull;
+    
+    uint64_t                    m_mappingFrame = 0ull;
   };
 
 }

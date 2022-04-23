@@ -7,16 +7,24 @@ namespace dxvk {
 
   D3D9CommonBuffer::D3D9CommonBuffer(
           D3D9DeviceEx*      pDevice,
-    const D3D9_BUFFER_DESC*  pDesc) 
-    : m_parent ( pDevice ), m_desc ( *pDesc ) {
+    const D3D9_BUFFER_DESC*  pDesc)
+    : m_parent ( pDevice ), m_desc ( *pDesc ),
+      m_mapMode(DetermineMapMode(pDevice->GetOptions())) {
     m_buffer = CreateBuffer();
-    if (GetMapMode() == D3D9_COMMON_BUFFER_MAP_MODE_BUFFER)
+    if (m_mapMode == D3D9_COMMON_BUFFER_MAP_MODE_BUFFER)
       m_stagingBuffer = CreateStagingBuffer();
 
     m_sliceHandle = GetMapBuffer()->getSliceHandle();
 
     if (m_desc.Pool != D3DPOOL_DEFAULT)
       m_dirtyRange = D3D9Range(0, m_desc.Size);
+  }
+
+  D3D9CommonBuffer::~D3D9CommonBuffer() {
+    if (m_desc.Size != 0)
+      m_parent->ChangeReportedMemory(m_desc.Size);
+
+    m_parent->RemoveMappedBuffer(this);
   }
 
 
@@ -57,7 +65,33 @@ namespace dxvk {
   }
 
 
-  Rc<DxvkBuffer> D3D9CommonBuffer::CreateBuffer() const {
+  bool D3D9CommonBuffer::AllocLockingData() {
+    // TODO_MMF:
+    /*if (m_mapMode != D3D9_COMMON_TEXTURE_MAP_MODE_UNMAPPABLE)
+      return CreateBufferSubresource(Subresource);*/
+
+    D3D9Memory& memory = m_lockingData;
+    if (likely(memory))
+      return false;
+
+    memory = m_parent->GetAllocator()->Alloc(m_desc.Size);
+    memory.Map();
+    return true;
+  }
+
+  void* D3D9CommonBuffer::GetLockingData() {
+    // TODO_MMF:
+    /*if (m_mapMode != D3D9_COMMON_TEXTURE_MAP_MODE_UNMAPPABLE)
+      return m_mappedSlice.mapPtr;*/
+
+    D3D9Memory& memory = m_lockingData;
+    memory.Map();
+    return memory.Ptr();
+  }
+
+  Rc<DxvkBuffer>
+  D3D9CommonBuffer::CreateBuffer() const
+  {
     DxvkBufferCreateInfo  info;
     info.size   = m_desc.Size;
     info.usage  = 0;
@@ -83,7 +117,7 @@ namespace dxvk {
       info.access |= VK_ACCESS_INDEX_READ_BIT;
     }
 
-    if (GetMapMode() == D3D9_COMMON_BUFFER_MAP_MODE_DIRECT) {
+    if (m_mapMode == D3D9_COMMON_BUFFER_MAP_MODE_DIRECT) {
       info.stages |= VK_PIPELINE_STAGE_HOST_BIT;
       info.access |= VK_ACCESS_HOST_WRITE_BIT;
 

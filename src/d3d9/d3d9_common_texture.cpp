@@ -3,6 +3,8 @@
 #include "d3d9_util.h"
 #include "d3d9_device.h"
 
+#include "../util/util_shared_res.h"
+
 #include <algorithm>
 
 namespace dxvk {
@@ -10,7 +12,8 @@ namespace dxvk {
   D3D9CommonTexture::D3D9CommonTexture(
           D3D9DeviceEx*             pDevice,
     const D3D9_COMMON_TEXTURE_DESC* pDesc,
-          D3DRESOURCETYPE           ResourceType)
+          D3DRESOURCETYPE           ResourceType,
+          HANDLE*                   pSharedHandle)
     : m_device(pDevice), m_desc(*pDesc), m_type(ResourceType) {
     if (m_desc.Format == D3D9Format::Unknown)
       m_desc.Format = (m_desc.Usage & D3DUSAGE_DEPTHSTENCIL)
@@ -26,6 +29,9 @@ namespace dxvk {
       for (uint32_t i = 0; i < subresources; i++) {
         SetNeedsUpload(i, true);
       }
+      if (pSharedHandle) {
+        throw DxvkError("D3D9: Incompatible pool type for texture sharing.");
+      }
     }
 
     m_mapping = pDevice->LookupFormat(m_desc.Format);
@@ -34,12 +40,12 @@ namespace dxvk {
     m_shadow         = DetermineShadowState();
     m_supportsFetch4 = DetermineFetch4Compatibility();
 
-    if (m_mapMode == D3D9_COMMON_TEXTURE_MAP_MODE_BACKED) {
+    if (m_mapMode == D3D9_COMMON_TEXTURE_MAP_MODE_BACKED || m_mapMode == D3D9_COMMON_TEXTURE_MAP_MODE_UNMAPPABLE) {
       bool plainSurface = m_type == D3DRTYPE_SURFACE &&
                           !(m_desc.Usage & (D3DUSAGE_RENDERTARGET | D3DUSAGE_DEPTHSTENCIL));
 
       try {
-        m_image = CreatePrimaryImage(ResourceType, plainSurface);
+        m_image = CreatePrimaryImage(ResourceType, plainSurface, pSharedHandle);
       }
       catch (const DxvkError& e) {
         // D3DUSAGE_AUTOGENMIPMAP and offscreen plain is mutually exclusive
@@ -47,10 +53,15 @@ namespace dxvk {
         if (m_desc.Usage & D3DUSAGE_AUTOGENMIPMAP || plainSurface) {
           m_desc.Usage &= ~D3DUSAGE_AUTOGENMIPMAP;
           m_desc.MipLevels = 1;
-          m_image = CreatePrimaryImage(ResourceType, false);
+          m_image = CreatePrimaryImage(ResourceType, false, pSharedHandle);
         }
         else
           throw e;
+      }
+
+      if (pSharedHandle && *pSharedHandle == nullptr) {
+        *pSharedHandle = m_image->sharedHandle();
+        ExportImageInfo();
       }
 
       CreateSampleView(0);
@@ -75,6 +86,8 @@ namespace dxvk {
   D3D9CommonTexture::~D3D9CommonTexture() {
     if (m_size != 0)
       m_device->ChangeReportedMemory(m_size);
+
+    m_device->RemoveMappedTexture(this);
   }
 
 
@@ -154,6 +167,27 @@ namespace dxvk {
     return D3D_OK;
   }
 
+  bool D3D9CommonTexture::AllocLockingData(UINT Subresource) {
+    if (m_mapMode != D3D9_COMMON_TEXTURE_MAP_MODE_UNMAPPABLE)
+      return CreateBufferSubresource(Subresource);
+
+    D3D9Memory& memory = m_lockingData[Subresource];
+    if (likely(memory))
+      return false;
+
+    memory = m_device->GetAllocator()->Alloc(GetMipSize(Subresource));
+    memory.Map();
+    return true;
+  }
+
+  void* D3D9CommonTexture::GetLockingData(UINT Subresource) {
+    if (m_mapMode != D3D9_COMMON_TEXTURE_MAP_MODE_UNMAPPABLE)
+      return m_mappedSlices[Subresource].mapPtr;
+
+    D3D9Memory& memory = m_lockingData[Subresource];
+    memory.Map();
+    return memory.Ptr();
+  }
 
   bool D3D9CommonTexture::CreateBufferSubresource(UINT Subresource) {
     if (m_buffers[Subresource] != nullptr)
@@ -206,7 +240,7 @@ namespace dxvk {
   }
 
 
-  Rc<DxvkImage> D3D9CommonTexture::CreatePrimaryImage(D3DRESOURCETYPE ResourceType, bool TryOffscreenRT) const {
+  Rc<DxvkImage> D3D9CommonTexture::CreatePrimaryImage(D3DRESOURCETYPE ResourceType, bool TryOffscreenRT, HANDLE* pSharedHandle) const {
     DxvkImageCreateInfo imageInfo;
     imageInfo.type            = GetImageTypeFromResourceType(ResourceType);
     imageInfo.format          = m_mapping.ConversionFormatInfo.FormatColor != VK_FORMAT_UNDEFINED
@@ -230,6 +264,17 @@ namespace dxvk {
     imageInfo.tiling          = VK_IMAGE_TILING_OPTIMAL;
     imageInfo.layout          = VK_IMAGE_LAYOUT_GENERAL;
     imageInfo.shared          = m_desc.IsBackBuffer;
+
+    if (pSharedHandle) {
+      imageInfo.sharing.type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT;
+      imageInfo.sharing.mode = (*pSharedHandle == INVALID_HANDLE_VALUE || *pSharedHandle == nullptr)
+        ? DxvkSharedHandleMode::Export
+        : DxvkSharedHandleMode::Import;
+      imageInfo.sharing.type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT;
+      imageInfo.sharing.handle = *pSharedHandle;
+      imageInfo.shared = true;
+      // TODO: validate metadata?
+    }
 
     if (m_mapping.ConversionFormatInfo.FormatType != D3D9ConversionFormat_None) {
       imageInfo.usage  |= VK_IMAGE_USAGE_STORAGE_BIT;
@@ -280,7 +325,7 @@ namespace dxvk {
     // We must keep LINEAR images in GENERAL layout, but we
     // can choose a better layout for the image based on how
     // it is going to be used by the game.
-    if (imageInfo.tiling == VK_IMAGE_TILING_OPTIMAL)
+    if (imageInfo.tiling == VK_IMAGE_TILING_OPTIMAL && imageInfo.sharing.mode == DxvkSharedHandleMode::None)
       imageInfo.layout = OptimizeLayout(imageInfo.usage);
 
     // For some formats, we need to enable render target
@@ -453,6 +498,79 @@ namespace dxvk {
     
     // Otherwise, we have to stick with the default layout
     return VK_IMAGE_LAYOUT_GENERAL;
+  }
+
+  D3D9_COMMON_TEXTURE_MAP_MODE D3D9CommonTexture::DetermineMapMode() const {
+    if (m_desc.Format == D3D9Format::NULL_FORMAT)
+    return D3D9_COMMON_TEXTURE_MAP_MODE_NONE;
+
+#ifndef D3D9_ALLOW_UNMAPPING
+    if (m_desc.Pool == D3DPOOL_SYSTEMMEM || m_desc.Pool == D3DPOOL_SCRATCH)
+    return D3D9_COMMON_TEXTURE_MAP_MODE_SYSTEMMEM;
+#else
+    if ((m_desc.Pool == D3DPOOL_SYSTEMMEM || m_desc.Pool == D3DPOOL_SCRATCH)
+      && m_device->GetOptions()->unmapDelay != 0)
+    return D3D9_COMMON_TEXTURE_MAP_MODE_UNMAPPABLE;
+
+    if (IsManaged() && m_device->GetOptions()->unmapDelay != 0)
+        return D3D9_COMMON_TEXTURE_MAP_MODE_UNMAPPABLE;
+#endif
+
+    return D3D9_COMMON_TEXTURE_MAP_MODE_BACKED;
+}
+
+
+  void D3D9CommonTexture::ExportImageInfo() {
+    /* From MSDN:
+      Textures being shared from D3D9 to D3D11 have the following restrictions.
+
+      - Textures must be 2D
+      - Only 1 mip level is allowed
+      - Texture must have default usage
+      - Texture must be write only
+      - MSAA textures are not allowed
+      - Bind flags must have SHADER_RESOURCE and RENDER_TARGET set
+      - Only R10G10B10A2_UNORM, R16G16B16A16_FLOAT and R8G8B8A8_UNORM formats are allowed
+    */
+    DXGI_FORMAT dxgiFormat = DXGI_FORMAT_UNKNOWN;
+
+    switch (m_desc.Format) {
+      case D3D9Format::A2B10G10R10: dxgiFormat = DXGI_FORMAT_R10G10B10A2_UNORM; break;
+      case D3D9Format::A16B16G16R16F: dxgiFormat = DXGI_FORMAT_R16G16B16A16_FLOAT; break;
+      case D3D9Format::A8B8G8R8: dxgiFormat = DXGI_FORMAT_R8G8B8A8_UNORM; break;
+      case D3D9Format::X8B8G8R8: dxgiFormat = DXGI_FORMAT_R8G8B8A8_UNORM; break; /* No RGBX in DXGI */
+      case D3D9Format::A8R8G8B8: dxgiFormat = DXGI_FORMAT_B8G8R8A8_UNORM; break;
+      case D3D9Format::X8R8G8B8: dxgiFormat = DXGI_FORMAT_B8G8R8X8_UNORM; break;
+      default:
+        Logger::warn(str::format("D3D9: Unsupported format for shared textures: ", m_desc.Format));
+        return;
+    }
+
+    if (m_desc.Depth == 1 && m_desc.MipLevels == 1 && m_desc.MultiSample == D3DMULTISAMPLE_NONE &&
+        m_desc.Usage & D3DUSAGE_RENDERTARGET && dxgiFormat != DXGI_FORMAT_UNKNOWN) {
+      HANDLE ntHandle = openKmtHandle(m_image->sharedHandle());
+
+      DxvkSharedTextureMetadata metadata;
+
+      metadata.Width              = m_desc.Width;
+      metadata.Height             = m_desc.Height;
+      metadata.MipLevels          = m_desc.MipLevels;
+      metadata.ArraySize          = m_desc.ArraySize;
+      metadata.Format             = dxgiFormat;
+      metadata.SampleDesc.Count   = 1;
+      metadata.SampleDesc.Quality = 0;
+      metadata.Usage              = D3D11_USAGE_DEFAULT;
+      metadata.BindFlags          = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+      metadata.CPUAccessFlags     = 0;
+      metadata.MiscFlags          = D3D11_RESOURCE_MISC_SHARED;
+      metadata.TextureLayout      = D3D11_TEXTURE_LAYOUT_UNDEFINED;
+
+      if (ntHandle == INVALID_HANDLE_VALUE || !setSharedMetadata(ntHandle, &metadata, sizeof(metadata)))
+        Logger::warn("D3D9: Failed to write shared resource info for a texture");
+
+      if (ntHandle != INVALID_HANDLE_VALUE)
+        ::CloseHandle(ntHandle);
+    }
   }
 
 
