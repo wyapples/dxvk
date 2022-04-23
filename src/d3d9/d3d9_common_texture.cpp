@@ -168,9 +168,8 @@ namespace dxvk {
   }
 
   bool D3D9CommonTexture::AllocLockingData(UINT Subresource) {
-    if (m_mapMode != D3D9_COMMON_TEXTURE_MAP_MODE_UNMAPPABLE) {
+    if (m_mapMode != D3D9_COMMON_TEXTURE_MAP_MODE_UNMAPPABLE)
       return CreateBufferSubresource(Subresource);
-    }
 
     D3D9Memory& memory = m_lockingData[Subresource];
     if (likely(memory))

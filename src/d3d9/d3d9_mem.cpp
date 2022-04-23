@@ -224,7 +224,7 @@ namespace dxvk {
       return;
 
     if (unlikely(m_chunk == nullptr)) {
-      Logger::err("Tried to map dead memory");
+      Logger::warn("Tried to map dead memory");
       return;
     }
 
@@ -243,7 +243,7 @@ namespace dxvk {
 
   void* D3D9Memory::Ptr() {
     if (unlikely(m_ptr == nullptr)) {
-      Logger::err("Tried accessing unmapped memory.");
+      Logger::warn("Tried accessing unmapped memory.");
       return nullptr;
     }
 

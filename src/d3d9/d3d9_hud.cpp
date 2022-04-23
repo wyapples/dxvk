@@ -40,7 +40,16 @@ namespace dxvk::hud {
 
   void HudManagedMemory::update(dxvk::high_resolution_clock::time_point time) {
     D3D9MemoryAllocator* allocator = m_device->GetAllocator();
-    m_memoryText = str::format(allocator->AllocatedMemory() >> 20, " MiB, Used: ", allocator->UsedMemory() >> 20, " MiB, Mapped: ", allocator->MappedMemory() >> 20, " MiB");
+
+    static uint32_t peakMapped = 0u;
+    if (allocator->MappedMemory() > peakMapped)
+      peakMapped = allocator->MappedMemory();
+
+    if ((::GetAsyncKeyState(VK_NUMPAD0) & 1) != 0)
+      peakMapped = 0u;
+
+    m_memoryText = str::format(std::setfill(' '), allocator->AllocatedMemory() >> 20, " MB allocated ",
+        std::setw(5),  allocator->UsedMemory() >> 20, " MB used ", std::setw(5), allocator->MappedMemory() >> 20, " MB mapped ", std::setw(5), peakMapped >> 20, " MB peak ");
   }
 
 
