@@ -169,7 +169,6 @@ namespace dxvk {
       uint32_t m_allocationGranularity;
   };
 
-#else
   class D3D9Memory {
     friend D3D9MemoryAllocator;
 
