@@ -158,7 +158,6 @@ namespace dxvk {
       size_t m_usedMemory = 0;
   };
 
-#else
     class D3D9Memory {
     public:
       D3D9Memory() = default;
