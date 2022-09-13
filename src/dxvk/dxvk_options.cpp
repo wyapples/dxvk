@@ -9,7 +9,6 @@ namespace dxvk {
     useRawSsbo                    = config.getOption<Tristate>("dxvk.useRawSsbo",             Tristate::Auto);
     enableGraphicsPipelineLibrary = config.getOption<Tristate>("dxvk.enableGraphicsPipelineLibrary", Tristate::Auto);
     trackPipelineLifetime = config.getOption<Tristate>("dxvk.trackPipelineLifetime",  Tristate::Auto);
-    shrinkNvidiaHvvHeap           = config.getOption<Tristate>("dxvk.shrinkNvidiaHvvHeap",    Tristate::Auto);
     hud                           = config.getOption<std::string>("dxvk.hud", "");
     forceSampleRateShading        = config.getOption<bool>("dxvk.forceSampleRateShading",          false);
     forcedSampleRateShadingFactor = config.getOption<float>("dxvk.forceSampleRateShadingFactor",   1.0f);
