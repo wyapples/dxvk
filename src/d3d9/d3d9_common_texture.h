@@ -153,6 +153,8 @@ namespace dxvk {
     bool AllocLockingData(UINT Subresource);
 
     /**
+TODO_MERGE:=======
+>>>>>>> master
      * \brief Returns a pointer to the internal data used for LockRect/LockBox
      *
      * This works regardless of the map mode used by this texture
@@ -165,6 +167,11 @@ namespace dxvk {
     const Rc<DxvkBuffer>& GetBuffer(UINT Subresource) {
       return m_buffers[Subresource];
     }
+/* TODO_MERGE:=======
+    void* GetData(UINT Subresource);
+
+    const Rc<DxvkBuffer>& GetBuffer(UINT Subresource);
+>>>>>>> master*/
 
 
     DxvkBufferSliceHandle GetMappedSlice(UINT Subresource) {
@@ -236,24 +243,16 @@ namespace dxvk {
       return Face * m_desc.MipLevels + MipLevel;
     }
 
-    /**
-     * \brief Creates buffers
-     * Creates mapping and staging buffers for all subresources
-     * allocates new buffers if necessary
-     */
-    void CreateBuffers() {
-      const uint32_t count = CountSubresources();
-      for (uint32_t i = 0; i < count; i++)
-        CreateBufferSubresource(i);
+    void UnmapData(UINT Subresource) {
+      m_data[Subresource].Unmap();
     }
 
-    /**
-     * \brief Creates a buffer
-     * Creates mapping and staging buffers for a given subresource
-     * allocates new buffers if necessary
-     * \returns Whether an allocation happened
-     */
-    bool CreateBufferSubresource(UINT Subresource);
+    void UnmapData() {
+      const uint32_t subresources = CountSubresources();
+      for (uint32_t i = 0; i < subresources; i++) {
+        m_data[i].Unmap();
+      }
+    }
 
     void UnmapLockingData() {
       const uint32_t subresources = CountSubresources();
@@ -357,7 +356,7 @@ namespace dxvk {
 
     void SetNeedsReadback(UINT Subresource, bool value) { m_needsReadback.set(Subresource, value); }
 
-    bool NeedsReachback(UINT Subresource) const { return m_needsReadback.get(Subresource); }
+    bool NeedsReadback(UINT Subresource) const { return m_needsReadback.get(Subresource); }
 
     void MarkAllNeedReadback() { m_needsReadback.setAll(); }
 
@@ -369,20 +368,22 @@ namespace dxvk {
       return m_sampleView.Pick(srgb && IsSrgbCompatible());
     }
 
-    VkImageLayout DetermineRenderTargetLayout() const {
+    VkImageLayout DetermineRenderTargetLayout(VkImageLayout hazardLayout) const {
+      if (unlikely(m_hazardous))
+        return hazardLayout;
+
       return m_image != nullptr &&
-             m_image->info().tiling == VK_IMAGE_TILING_OPTIMAL &&
-            !m_hazardous
+             m_image->info().tiling == VK_IMAGE_TILING_OPTIMAL
         ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
         : VK_IMAGE_LAYOUT_GENERAL;
     }
 
-    VkImageLayout DetermineDepthStencilLayout(bool write, bool hazardous) const {
+    VkImageLayout DetermineDepthStencilLayout(bool write, bool hazardous, VkImageLayout hazardLayout) const {
       VkImageLayout layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
       if (unlikely(hazardous)) {
         layout = write
-          ? VK_IMAGE_LAYOUT_GENERAL
+          ? hazardLayout
           : VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL;
       }
 
@@ -411,6 +412,8 @@ namespace dxvk {
     void EnableStagingBufferUploads(UINT Subresource) {
       m_uploadUsingStaging.set(Subresource, true);
     }
+/* TODO_MERGE:=======
+>>>>>>> master*/
 
     void SetNeedsMipGen(bool value) { m_needsMipGen = value; }
     bool NeedsMipGen() const { return m_needsMipGen; }
@@ -502,6 +505,15 @@ namespace dxvk {
     uint64_t GetMappingFrame() const {
       return m_mappingFrame;
     }
+/* TODO_MERGE: =======
+    /**
+     * \brief Creates a buffer
+     * Creates mapping and staging buffers for a given subresource
+     * allocates new buffers if necessary
+     * \returns Whether an allocation happened
+     */
+/*    void CreateBufferSubresource(UINT Subresource, bool Initialize);
+>>>>>>> master*/
 
   private:
 
@@ -517,7 +529,11 @@ namespace dxvk {
     D3D9SubresourceArray<
       DxvkBufferSliceHandle>      m_mappedSlices = { };
     D3D9SubresourceArray<
+
       D3D9Memory>                 m_lockingData = { };
+/* TODO_MERGE: =======
+      D3D9Memory>                 m_data = { };
+>>>>>>> master*/
     D3D9SubresourceArray<
       uint64_t>                   m_seqs = { };
 
@@ -580,6 +596,20 @@ namespace dxvk {
     static VkImageViewType GetImageViewTypeFromResourceType(
             D3DRESOURCETYPE  Dimension,
             UINT             Layer);
+
+    /**
+     * \brief Creates buffers
+     * Creates mapping and staging buffers for all subresources
+     * allocates new buffers if necessary
+     */
+    void CreateBuffers() {
+      // D3D9Initializer will handle clearing the buffers
+      const uint32_t count = CountSubresources();
+      for (uint32_t i = 0; i < count; i++)
+        CreateBufferSubresource(i, false);
+    }
+
+    void AllocData();
 
     static constexpr UINT AllLayers = UINT32_MAX;
 

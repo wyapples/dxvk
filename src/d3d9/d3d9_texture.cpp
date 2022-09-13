@@ -87,7 +87,10 @@ namespace dxvk {
     // Some games keep using the pointer returned in LockRect() after calling Unlock()
     // and purely rely on AddDirtyRect to notify D3D9 that contents have changed.
     // We have no way of knowing which mip levels were actually changed.
-    m_texture.SetAllNeedUpload();
+    // TODO_MERGE: mine had no if.
+    if (m_texture.IsManaged())
+      m_texture.SetAllNeedUpload();
+
     m_parent->TouchMappedTexture(&m_texture);
     return D3D_OK;
   }
@@ -170,7 +173,11 @@ namespace dxvk {
     // Some games keep using the pointer returned in LockBox() after calling Unlock()
     // and purely rely on AddDirtyBox to notify D3D9 that contents have changed.
     // We have no way of knowing which mip levels were actually changed.
-    m_texture.SetAllNeedUpload();
+
+    // TODO_MERGE:
+    if (m_texture.IsManaged())
+      m_texture.SetAllNeedUpload();
+    
     m_parent->TouchMappedTexture(&m_texture);
     return D3D_OK;
   }
@@ -259,8 +266,10 @@ namespace dxvk {
     // Some games keep using the pointer returned in LockRect() after calling Unlock()
     // and purely rely on AddDirtyRect to notify D3D9 that contents have changed.
     // We have no way of knowing which mip levels were actually changed.
-    for (uint32_t m = 0; m < m_texture.Desc()->MipLevels; m++) {
-      m_texture.SetNeedsUpload(m_texture.CalcSubresource(Face, m), true);
+    if (m_texture.IsManaged()) {
+      for (uint32_t m = 0; m < m_texture.Desc()->MipLevels; m++) {
+        m_texture.SetNeedsUpload(m_texture.CalcSubresource(Face, m), true);
+      }
     }
     m_parent->TouchMappedTexture(&m_texture);
     return D3D_OK;

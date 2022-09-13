@@ -63,12 +63,10 @@ namespace dxvk {
     this->forceSamplerTypeSpecConstants = config.getOption<bool>        ("d3d9.forceSamplerTypeSpecConstants", false);
     this->forceSwapchainMSAA            = config.getOption<int32_t>     ("d3d9.forceSwapchainMSAA",            -1);
     this->forceAspectRatio              = config.getOption<std::string> ("d3d9.forceAspectRatio",              "");
-    this->allowDoNotWait                = config.getOption<bool>        ("d3d9.allowDoNotWait",                true);
     this->allowDiscard                  = config.getOption<bool>        ("d3d9.allowDiscard",                  true);
     this->enumerateByDisplays           = config.getOption<bool>        ("d3d9.enumerateByDisplays",           true);
     this->longMad                       = config.getOption<bool>        ("d3d9.longMad",                       false);
     this->tearFree                      = config.getOption<Tristate>    ("d3d9.tearFree",                      Tristate::Auto);
-    this->alphaTestWiggleRoom           = config.getOption<bool>        ("d3d9.alphaTestWiggleRoom",           false);
     this->apitraceMode                  = config.getOption<bool>        ("d3d9.apitraceMode",                  false);
     this->deviceLocalConstantBuffers    = config.getOption<bool>        ("d3d9.deviceLocalConstantBuffers",    false);
     this->forceD32FS8DepthStencil       = config.getOption<bool>        ("d3d9.forceD32FS8DepthStencil",       false);
@@ -83,6 +81,10 @@ namespace dxvk {
                             0, 0);
     applyTristate(this->generalHazards, config.getOption<Tristate>("d3d9.generalHazards", Tristate::Auto));
 
+    this->allowDirectBufferMapping      = config.getOption<bool>        ("d3d9.allowDirectBufferMapping",      true);
+    this->seamlessCubes                 = config.getOption<bool>        ("d3d9.seamlessCubes",                 false);
+    this->textureMemory                 = config.getOption<int32_t>     ("d3d9.textureMemory",                100) << 20;
+
     std::string floatEmulation = Config::toLower(config.getOption<std::string>("d3d9.floatEmulation", "auto"));
     if (floatEmulation == "strict") {
       d3d9FloatEmulation = D3D9FloatEmulation::Strict;
@@ -92,10 +94,7 @@ namespace dxvk {
       d3d9FloatEmulation = D3D9FloatEmulation::Enabled;
     } else {
       bool hasMulz = adapter != nullptr
-                  && adapter->matchesDriver(DxvkGpuVendor::Amd,
-                                            VK_DRIVER_ID_MESA_RADV,
-                                            VK_MAKE_VERSION(21, 99, 99),
-                                            0);
+                  && adapter->matchesDriver(VK_DRIVER_ID_MESA_RADV, 0, 0);
       d3d9FloatEmulation = hasMulz ? D3D9FloatEmulation::Strict : D3D9FloatEmulation::Enabled;
     }
   }

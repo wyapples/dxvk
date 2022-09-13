@@ -67,10 +67,6 @@ namespace dxvk {
     /// Defer surface creation
     bool deferSurfaceCreation;
 
-    /// Whether to transition to general
-    /// for rendering hazards
-    bool generalHazards;
-
     /// Anisotropic filter override
     ///
     /// Enforces anisotropic filtering with the
@@ -124,9 +120,6 @@ namespace dxvk {
     /// Forces an MSAA level on the swapchain
     int32_t forceSwapchainMSAA;
 
-    /// Allow D3DLOCK_DONOTWAIT
-    bool allowDoNotWait;
-
     /// Allow D3DLOCK_DISCARD
     bool allowDiscard;
 
@@ -142,10 +135,6 @@ namespace dxvk {
     /// Tearing mode if vsync is enabled
     Tristate tearFree;
 
-    /// Workaround for games using alpha test == 1.0, etc due to wonky interpolation or
-    /// misc. imprecision on some vendors
-    bool alphaTestWiggleRoom;
-
     /// Apitrace mode: Maps all buffers in cached memory.
     bool apitraceMode;
 
@@ -160,6 +149,12 @@ namespace dxvk {
 
     /// How many frames need to pass before managed data gets unmapped
     int32_t unmapDelay;
+
+    /// Don't use non seamless cube maps
+    bool seamlessCubes;
+
+    /// How much virtual memory will be used for textures (in MB).
+    int32_t textureMemory;
   };
 
 }

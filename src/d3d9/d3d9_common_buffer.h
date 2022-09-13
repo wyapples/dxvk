@@ -167,11 +167,6 @@ namespace dxvk {
     inline D3D9Range& DirtyRange()  { return m_dirtyRange; }
 
     /**
-     * \brief The range of the buffer that might currently be read by the GPU
-     */
-    inline D3D9Range& GPUReadingRange() { return m_gpuReadingRange; }
-
-    /**
     * \brief Whether or not the buffer was written to by the GPU (in IDirect3DDevice9::ProcessVertices)
     */
     inline bool NeedsReadback() const     { return m_needsReadback; }
@@ -207,6 +202,8 @@ namespace dxvk {
     void SetMappingFrame(uint64_t Frame) { m_mappingFrame = Frame; }
     uint64_t GetMappingFrame() const { return m_mappingFrame; }
 
+/*TODO_MERGE:=======
+>>>>>>> master*/
     void PreLoad();
 
     bool HasSequenceNumber() const {
@@ -273,7 +270,6 @@ namespace dxvk {
     D3D9Memory                  m_lockingData;
 
     D3D9Range                   m_dirtyRange;
-    D3D9Range                   m_gpuReadingRange;
 
     uint32_t                    m_lockCount = 0;
 
