@@ -157,11 +157,6 @@ namespace dxvk {
       size_t m_allocatedMemory = 0;
       size_t m_usedMemory = 0;
   };
-
-  class D3D9Memory {
-    public:
-      D3D9Memory() = default;
-      D3D9Memory(D3D9MemoryAllocator* Allocator, size_t Size);
 #else
       std::atomic<size_t> m_mappedMemory = 0;
       std::atomic<size_t> m_allocatedMemory = 0;
