@@ -877,7 +877,7 @@ namespace dxvk {
     if (m_barrier.access & VK_ACCESS_SHADER_WRITE_BIT)
       m_flags.set(DxvkGraphicsPipelineFlag::HasStorageDescriptors);
     
-    // TODO_MERGE:
+    // TODO_MERGE: - there's a place where hasSample... is checked, move forcing there.
     /*m_common.msSampleShadingEnable = m_shaders.fs != nullptr && (m_shaders.fs->flags().test(DxvkShaderFlag::HasSampleRateShading) || pipeMgr->m_device->config().forceSampleRateShading);
     m_common.msSampleShadingFactor = pipeMgr->m_device->config().forceSampleRateShading ? pipeMgr->m_device->config().forcedSampleRateShadingFactor : 1.0f;*/
   }
