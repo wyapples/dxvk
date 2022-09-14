@@ -54,7 +54,7 @@ namespace dxvk {
     , m_d3d9Options     ( dxvkDevice, pParent->GetInstance()->config() )
     , m_multithread     ( BehaviorFlags & D3DCREATE_MULTITHREADED )
     , m_isSWVP          ( (BehaviorFlags & D3DCREATE_SOFTWARE_VERTEXPROCESSING) ? true : false )
-    , m_csThread        ( dxvkDevice, dxvkDevice->createContext() )
+    , m_csThread        ( dxvkDevice, dxvkDevice->createContext(DxvkContextType::Primary) )
 /*TODO_MERGE: =======
     
     , m_shaderModules   ( new D3D9ShaderModuleSet )

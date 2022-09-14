@@ -877,8 +877,9 @@ namespace dxvk {
     if (m_barrier.access & VK_ACCESS_SHADER_WRITE_BIT)
       m_flags.set(DxvkGraphicsPipelineFlag::HasStorageDescriptors);
     
-    m_common.msSampleShadingEnable = m_shaders.fs != nullptr && (m_shaders.fs->flags().test(DxvkShaderFlag::HasSampleRateShading) || pipeMgr->m_device->config().forceSampleRateShading);
-    m_common.msSampleShadingFactor = pipeMgr->m_device->config().forceSampleRateShading ? pipeMgr->m_device->config().forcedSampleRateShadingFactor : 1.0f;
+    // TODO_MERGE:
+    /*m_common.msSampleShadingEnable = m_shaders.fs != nullptr && (m_shaders.fs->flags().test(DxvkShaderFlag::HasSampleRateShading) || pipeMgr->m_device->config().forceSampleRateShading);
+    m_common.msSampleShadingFactor = pipeMgr->m_device->config().forceSampleRateShading ? pipeMgr->m_device->config().forcedSampleRateShadingFactor : 1.0f;*/
   }
   
   
