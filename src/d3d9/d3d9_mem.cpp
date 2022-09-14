@@ -5,14 +5,31 @@
 #include "../util/util_likely.h"
 #include <utility>
 
+#ifdef D3D9_ALLOW_UNMAPPING
+#include <sysinfoapi.h>
+#else
+#include <stdlib.h>
+#endif
+
 namespace dxvk {
 
 #ifdef D3D9_ALLOW_UNMAPPING
+#ifndef UNMAP_V1
+  D3D9MemoryAllocator::D3D9MemoryAllocator()
+  {
+    SYSTEM_INFO sysInfo;
+    GetSystemInfo(&sysInfo);
+    m_allocationGranularity = sysInfo.dwAllocationGranularity;
+  }
+#endif
 
   D3D9Memory D3D9MemoryAllocator::Alloc(uint32_t Size) {
     std::lock_guard<dxvk::mutex> lock(m_mutex);
-
+#ifdef UNMAP_V1
     uint32_t alignedSize = align(Size, 16);
+#else
+    uint32_t alignedSize = align(Size, CACHE_LINE_SIZE);
+#endif
     for (auto& chunk : m_chunks) {
       D3D9Memory memory = chunk->Alloc(alignedSize);
       if (memory) {
@@ -20,8 +37,9 @@ namespace dxvk {
         return memory;
       }
     }
-
+#ifdef UNMAP_V1
     alignedSize = align(Size, 4 << 10);
+#endif
     uint32_t chunkSize = std::max(D3D9ChunkSize, alignedSize);
     m_allocatedMemory += chunkSize;
 
@@ -45,39 +63,54 @@ namespace dxvk {
   }
 
   void D3D9MemoryAllocator::NotifyMapped(uint32_t Size) {
+#ifdef UNMAP_V1
     std::lock_guard<dxvk::mutex> lock(m_mutex);
+#endif
 
     m_mappedMemory += Size;
   }
 
   void D3D9MemoryAllocator::NotifyUnmapped(uint32_t Size) {
+#ifdef UNMAP_V1
     std::lock_guard<dxvk::mutex> lock(m_mutex);
+#endif
 
     m_mappedMemory -= Size;
   }
 
   void D3D9MemoryAllocator::NotifyFreed(uint32_t Size) {
+#ifdef UNMAP_V1
     std::lock_guard<dxvk::mutex> lock(m_mutex);
+#endif
 
     m_usedMemory -= Size;
   }
 
   uint32_t D3D9MemoryAllocator::MappedMemory() {
+#ifdef UNMAP_V1
     std::lock_guard<dxvk::mutex> lock(m_mutex);
-
     return m_mappedMemory;
+#else
+    return m_mappedMemory.load();
+#endif
   }
 
   uint32_t D3D9MemoryAllocator::UsedMemory() {
+#ifdef UNMAP_V1
     std::lock_guard<dxvk::mutex> lock(m_mutex);
-
     return m_usedMemory;
+#else
+    return m_usedMemory.load();
+#endif
   }
 
   uint32_t D3D9MemoryAllocator::AllocatedMemory() {
+#ifdef UNMAP_V1
     std::lock_guard<dxvk::mutex> lock(m_mutex);
-
     return m_allocatedMemory;
+#else
+    return m_allocatedMemory.load();
+#endif
   }
 
 
