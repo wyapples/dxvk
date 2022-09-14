@@ -944,28 +944,22 @@ namespace dxvk {
       return &m_memoryAllocator;
     }
 
-<<<<<<< HEAD
     void BumpFrame() {
       m_frameCounter++;
       UnmapTextures();
       UnmapBuffers();
     }
 
-=======
->>>>>>> master
     void* MapTexture(D3D9CommonTexture* pTexture, UINT Subresource);
     void TouchMappedTexture(D3D9CommonTexture* pTexture);
     void RemoveMappedTexture(D3D9CommonTexture* pTexture);
 
-<<<<<<< HEAD
     void* MapBuffer(D3D9CommonBuffer* pBuffer);
     // VL: unlike textures, we only consider buffer being used if it was
     // actually mapped.  Currently that's when buffer is locked.  So, this is dead code.
     void TouchMappedBuffer(D3D9CommonBuffer* pBuffer);
     void RemoveMappedBuffer(D3D9CommonBuffer* pBuffer);
 
-=======
->>>>>>> master
   private:
 
     DxvkCsChunkRef AllocCsChunk() {
@@ -1175,10 +1169,7 @@ namespace dxvk {
       UINT Subresource);
 
     void UnmapTextures();
-<<<<<<< HEAD
     void UnmapBuffers();
-=======
->>>>>>> master
 
     uint64_t GetCurrentSequenceNumber();
 
@@ -1193,14 +1184,11 @@ namespace dxvk {
 
     D3D9MemoryAllocator             m_memoryAllocator;
 
-<<<<<<< HEAD
-=======
     // Second memory allocator used for D3D9 shader bytecode.
     // Most games never access the stored bytecode, so putting that
     // into the same chunks as texture memory would waste address space.
     D3D9MemoryAllocator             m_shaderAllocator;
 
->>>>>>> master
     uint32_t                        m_frameLatency = DefaultFrameLatency;
 
     D3D9Initializer*                m_initializer = nullptr;
