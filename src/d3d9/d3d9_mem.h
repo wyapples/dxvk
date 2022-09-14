@@ -2,6 +2,7 @@
 #pragma once
 
 #include "../util/thread.h"
+#define UNMAP_V1
 
 #if defined(_WIN32) && !defined(_WIN64)
   #define D3D9_ALLOW_UNMAPPING
@@ -10,6 +11,10 @@
 #ifdef D3D9_ALLOW_UNMAPPING
   #define WIN32_LEAN_AND_MEAN
   #include <winbase.h>
+#endif
+
+#ifndef UNMAP_V1
+#include <vector>
 #endif
 
 namespace dxvk {
@@ -21,12 +26,25 @@ namespace dxvk {
 
   class D3D9MemoryChunk;
 
+#ifdef UNMAP_V1
   constexpr uint32_t D3D9ChunkSize = 16 << 20;
+#else
+  constexpr uint32_t D3D9ChunkSize = 64 << 20;
+#endif
+
 
   struct D3D9MemoryRange {
     uint32_t offset;
     uint32_t length;
   };
+
+#ifndef UNMAP_V1
+  struct D3D9MappingRange
+  {
+    uint32_t refCount = 0;
+    void* ptr = nullptr;
+  };
+#endif
 
   class D3D9MemoryChunk {
     friend D3D9MemoryAllocator;
@@ -39,26 +57,42 @@ namespace dxvk {
 
       D3D9MemoryChunk             (D3D9MemoryChunk&& other) = delete;
       D3D9MemoryChunk& operator = (D3D9MemoryChunk&& other) = delete;
-
+#ifdef UNMAP_V1
       void IncMapCounter();
       void DecMapCounter();
       void* Ptr() const { return m_ptr; }
+#endif
       D3D9Memory Alloc(uint32_t Size);
       void Free(D3D9Memory* Memory);
       bool IsEmpty();
       uint32_t Size() const { return m_size; }
       D3D9MemoryAllocator* Allocator() const;
-
+#ifndef UNMAP_V1
+      HANDLE FileHandle() const;
+      void* Map(D3D9Memory* memory);
+      void Unmap(D3D9Memory* memory);
+#endif
     private:
       D3D9MemoryChunk(D3D9MemoryAllocator* Allocator, uint32_t Size);
 
       dxvk::mutex m_mutex;
       D3D9MemoryAllocator* m_allocator;
+#ifdef UNMAP_V1
       uint32_t m_mapCounter = 0;
+#endif
       HANDLE m_mapping;
+#ifdef UNMAP_V1
       void* m_ptr;
+#endif
       uint32_t m_size;
+#ifndef UNMAP_V1
+      uint32_t m_mappingGranularity;
+#endif
       std::vector<D3D9MemoryRange> m_freeRanges;
+#ifndef UNMAP_V1
+      std::vector<D3D9MappingRange> m_mappingRanges;
+#endif
+
   };
 
   class D3D9Memory {
@@ -97,7 +131,11 @@ namespace dxvk {
     friend D3D9MemoryChunk;
 
     public:
+#ifdef UNMAP_V1
       D3D9MemoryAllocator() = default;
+#else
+      ~D3D9MemoryAllocator();
+#endif
       ~D3D9MemoryAllocator() = default;
       D3D9Memory Alloc(uint32_t Size);
       void FreeChunk(D3D9MemoryChunk* Chunk);
@@ -111,15 +149,25 @@ namespace dxvk {
     private:
       dxvk::mutex m_mutex;
       std::vector<std::unique_ptr<D3D9MemoryChunk>> m_chunks;
+#ifdef UNMAP_V1
       size_t m_mappedMemory = 0;
       size_t m_allocatedMemory = 0;
       size_t m_usedMemory = 0;
+#else
+      std::atomic<size_t> m_mappedMemory = 0;
+      std::atomic<size_t> m_allocatedMemory = 0;
+      std::atomic<size_t> m_usedMemory = 0;
+      uint32_t m_allocationGranularity;
+#endif
   };
 
-#else
+#else // Don't care about this branch.  Copy TODO_MERGE: master
     class D3D9Memory {
+#ifndef UNMAP_V1
+      friend D3D9MemoryAllocator;
+#endif
     public:
-      D3D9Memory() = default;
+      D3D9Memory(){};
       D3D9Memory(D3D9MemoryAllocator* Allocator, size_t Size);
       ~D3D9Memory();
 
