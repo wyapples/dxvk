@@ -118,20 +118,25 @@ namespace dxvk {
 #ifdef UNMAP_V1
     : m_allocator(Allocator), m_size(Size) {
 #else
+    : m_allocator(Allocator), m_size(Size), m_mappingGranularity(m_allocator->MemoryGranularity() * 16) {
 #endif
     m_mapping = CreateFileMappingA(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE | SEC_COMMIT, 0, Size, nullptr);
     m_freeRanges.push_back({ 0, Size });
+#ifndef UNMAP_V1
+    m_mappingRanges.resize(((Size + m_mappingGranularity - 1) / m_mappingGranularity));
+#endif
   }
 
   D3D9MemoryChunk::~D3D9MemoryChunk() {
     std::lock_guard<dxvk::mutex> lock(m_mutex);
-
+#ifdef UNMAP_V1
     if (m_ptr != nullptr) {
       UnmapViewOfFile(m_ptr);
     }
+#endif
     CloseHandle(m_mapping);
   }
-
+#ifdef UNMAP_V1
   void D3D9MemoryChunk::IncMapCounter() {
     std::lock_guard<dxvk::mutex> lock(m_mutex);
     m_mapCounter++;
@@ -152,6 +157,79 @@ namespace dxvk {
       m_ptr = nullptr;
     }
   }
+#endif
+
+#ifndef UNMAP_V1
+   void* D3D9MemoryChunk::Map(D3D9Memory* memory) {
+    std::lock_guard<dxvk::mutex> lock(m_mutex);
+
+    uint32_t alignedOffset = alignDown(memory->GetOffset(), m_mappingGranularity);
+    uint32_t alignmentDelta = memory->GetOffset() - alignedOffset;
+    uint32_t alignedSize = memory->GetSize() + alignmentDelta;
+    if (alignedSize > m_mappingGranularity) {
+      // The allocation crosses the boundary of the internal mapping page it's a part of
+      // so we map it on it's own.
+      alignedOffset = alignDown(memory->GetOffset(), m_allocator->MemoryGranularity());
+      alignmentDelta = memory->GetOffset() - alignedOffset;
+      alignedSize = memory->GetSize() + alignmentDelta;
+
+      m_allocator->NotifyMapped(alignedSize);
+      uint8_t* basePtr = static_cast<uint8_t*>(MapViewOfFile(m_mapping, FILE_MAP_ALL_ACCESS, 0, alignedOffset, alignedSize));
+      if (unlikely(basePtr == nullptr)) {
+        DWORD error = GetLastError();
+        Logger::err(str::format("Mapping non-persisted file failed: ", error, ", Mapped memory: ", m_allocator->MappedMemory()));
+        return nullptr;
+      }
+      return basePtr + alignmentDelta;
+    }
+
+    // For small allocations we map the entire mapping page to minimize the overhead from having the align the offset to 65k bytes.
+    // This should hopefully also reduce the amount of MapViewOfFile calls we do for tiny allocations.
+    auto& mappingRange = m_mappingRanges[memory->GetOffset() /  m_mappingGranularity];
+    if (unlikely(mappingRange.refCount == 0)) {
+      m_allocator->NotifyMapped(m_mappingGranularity);
+      mappingRange.ptr = static_cast<uint8_t*>(MapViewOfFile(m_mapping, FILE_MAP_ALL_ACCESS, 0, alignedOffset, m_mappingGranularity));
+      if (unlikely(mappingRange.ptr == nullptr)) {
+        DWORD error = GetLastError();
+        LPTSTR buffer = nullptr;
+        FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM, nullptr, error, MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL), (LPTSTR)&buffer, 0, nullptr);
+        Logger::err(str::format("Mapping non-persisted file failed: ", error, ", Mapped memory: ", m_allocator->MappedMemory(), ", Msg: ", buffer));
+        if (buffer) {
+          LocalFree(buffer);
+        }
+      }
+    }
+    mappingRange.refCount++;
+    uint8_t* basePtr = static_cast<uint8_t*>(mappingRange.ptr);
+    return basePtr + alignmentDelta;
+  }
+
+  void D3D9MemoryChunk::Unmap(D3D9Memory* memory) {
+    std::lock_guard<dxvk::mutex> lock(m_mutex);
+
+    uint32_t alignedOffset = alignDown(memory->GetOffset(), m_mappingGranularity);
+    uint32_t alignmentDelta = memory->GetOffset() - alignedOffset;
+    uint32_t alignedSize = memory->GetSize() + alignmentDelta;
+    if (alignedSize > m_mappingGranularity) {
+      // Single use mapping
+      alignedOffset = alignDown(memory->GetOffset(), m_allocator->MemoryGranularity());
+      alignmentDelta = memory->GetOffset() - alignedOffset;
+      alignedSize = memory->GetSize() + alignmentDelta;
+
+      uint8_t* basePtr = static_cast<uint8_t*>(memory->Ptr()) - alignmentDelta;
+      UnmapViewOfFile(basePtr);
+      m_allocator->NotifyUnmapped(alignedSize);
+      return;
+    }
+    auto& mappingRange = m_mappingRanges[memory->GetOffset() /  m_mappingGranularity];
+    mappingRange.refCount--;
+    if (unlikely(mappingRange.refCount == 0)) {
+      UnmapViewOfFile(mappingRange.ptr);
+      mappingRange.ptr = nullptr;
+      m_allocator->NotifyUnmapped(m_mappingGranularity);
+    }
+  }
+#endif
 
   D3D9Memory D3D9MemoryChunk::Alloc(uint32_t Size) {
     std::lock_guard<dxvk::mutex> lock(m_mutex);
@@ -174,7 +252,11 @@ namespace dxvk {
     }
 
     if (size != 0)
+#ifdef UNMAP_V1
       return D3D9Memory(this, offset, size);
+#else
+      return D3D9Memory(this, offset, Size);
+#endif
 
     return {};
   }
@@ -183,25 +265,25 @@ namespace dxvk {
     std::lock_guard<dxvk::mutex> lock(m_mutex);
 
     uint32_t offset = Memory->GetOffset();
-    uint32_t length = Memory->GetSize();
+    uint32_t size = Memory->GetSize();
 
     auto curr = m_freeRanges.begin();
 
     // shamelessly stolen from dxvk_memory.cpp
     while (curr != m_freeRanges.end()) {
-      if (curr->offset == offset + length) {
-        length += curr->length;
+      if (curr->offset == offset + size) {
+        size += curr->length;
         curr = m_freeRanges.erase(curr);
       } else if (curr->offset + curr->length == offset) {
         offset -= curr->length;
-        length += curr->length;
+        size += curr->length;
         curr = m_freeRanges.erase(curr);
       } else {
         curr++;
       }
     }
 
-    m_freeRanges.push_back({ offset, length });
+    m_freeRanges.push_back({ offset, size });
     m_allocator->NotifyFreed(Memory->GetSize());
   }
 
@@ -215,7 +297,11 @@ namespace dxvk {
   D3D9MemoryAllocator* D3D9MemoryChunk::Allocator() const {
     return m_allocator;
   }
-
+#ifndef UNMAP_V1
+  HANDLE D3D9MemoryChunk::FileHandle() const {
+    return m_mapping;
+  }
+#endif
 
   D3D9Memory::D3D9Memory(D3D9MemoryChunk* Chunk, size_t Offset, size_t Size)
     : m_chunk(Chunk), m_offset(Offset), m_size(Size) {}
@@ -245,7 +331,7 @@ namespace dxvk {
       return;
 
     if (m_ptr != nullptr)
-      m_chunk->DecMapCounter();
+>>>>      m_chunk->DecMapCounter();
 
     m_chunk->Free(this);
     if (m_chunk->IsEmpty()) {
