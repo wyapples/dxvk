@@ -331,7 +331,11 @@ namespace dxvk {
       return;
 
     if (m_ptr != nullptr)
->>>>      m_chunk->DecMapCounter();
+#ifdef UNMAP_V1
+      m_chunk->DecMapCounter();
+#else
+      Unmap();
+#endif
 
     m_chunk->Free(this);
     if (m_chunk->IsEmpty()) {
@@ -345,97 +349,92 @@ namespace dxvk {
     if (unlikely(m_ptr != nullptr))
       return;
 
-    if (unlikely(m_chunk == nullptr)) {
-      Logger::warn("Tried to map dead memory");
+    if (unlikely(m_chunk == nullptr))
       return;
-    }
 
+#ifdef UNMAP_V1
     m_chunk->IncMapCounter();
     uint8_t* ptr = reinterpret_cast<uint8_t*>(m_chunk->Ptr());
     m_ptr = ptr + m_offset;
+#else
+    m_ptr = m_chunk->Map(this);
+#endif
   }
 
   void D3D9Memory::Unmap() {
     if (unlikely(m_ptr == nullptr))
       return;
-
+#ifndef UNMAP_V1
+    m_chunk->Unmap(this);
+#endif
     m_ptr = nullptr;
+#ifdef UNMAP_V1
     m_chunk->DecMapCounter();
+#endif
   }
 
   void* D3D9Memory::Ptr() {
+#ifdef UNMAP_V1
     if (unlikely(m_ptr == nullptr)) {
       Logger::warn("Tried accessing unmapped memory.");
       return nullptr;
     }
+#endif
 
     return m_ptr;
   }
 
 #else
+ 
+D3D9Memory D3D9MemoryAllocator::Alloc(uint32_t Size) {
+    D3D9Memory memory(this, Size);
+    m_allocatedMemory += Size;
+    return memory;
+  }
 
-    D3D9Memory D3D9MemoryAllocator::Alloc(uint32_t Size) {
-      std::lock_guard<dxvk::mutex> lock(m_mutex);
+  uint32_t D3D9MemoryAllocator::MappedMemory() {
+    return m_allocatedMemory.load();
+  }
 
-      m_usedMemory += Size;
+  uint32_t D3D9MemoryAllocator::UsedMemory() {
+    return m_allocatedMemory.load();
+  }
 
-      return D3D9Memory(this, Size);
-    }
+  uint32_t D3D9MemoryAllocator::AllocatedMemory() {
+    return m_allocatedMemory.load();
+  }
 
-    void D3D9MemoryAllocator::NotifyFreed(uint32_t Size) {
-      std::lock_guard<dxvk::mutex> lock(m_mutex);
+  D3D9Memory::D3D9Memory(D3D9MemoryAllocator* pAllocator, size_t Size)
+    : m_allocator (pAllocator),
+      m_ptr       (malloc(Size)),
+      m_size      (Size) {}
 
-      m_usedMemory -= Size;
-    }
+  D3D9Memory::D3D9Memory(D3D9Memory&& other)
+    : m_allocator(std::exchange(other.m_allocator, nullptr)),
+      m_ptr(std::exchange(other.m_ptr, nullptr)),
+      m_size(std::exchange(other.m_size, 0)) {}
 
-    uint32_t D3D9MemoryAllocator::MappedMemory() {
-      std::lock_guard<dxvk::mutex> lock(m_mutex);
+  D3D9Memory::~D3D9Memory() {
+    this->Free();
+  }
 
-      return m_usedMemory;
-    }
+  D3D9Memory& D3D9Memory::operator = (D3D9Memory&& other) {
+    this->Free();
 
-    uint32_t D3D9MemoryAllocator::UsedMemory() {
-      std::lock_guard<dxvk::mutex> lock(m_mutex);
+    m_allocator = std::exchange(other.m_allocator, nullptr);
+    m_ptr = std::exchange(other.m_ptr, nullptr);
+    m_size = std::exchange(other.m_size, 0);
+    return *this;
+  }
 
-      return m_usedMemory;
-    }
+  void D3D9Memory::Free() {
+    if (m_ptr == nullptr)
+      return;
 
-    uint32_t D3D9MemoryAllocator::AllocatedMemory() {
-      std::lock_guard<dxvk::mutex> lock(m_mutex);
-
-      return m_usedMemory;
-    }
-
-    D3D9Memory::D3D9Memory(D3D9MemoryAllocator* Allocator, size_t Size)
-      : m_allocator(Allocator), m_ptr(std::malloc(Size)), m_size(Size) { }
-
-    D3D9Memory::D3D9Memory(D3D9Memory&& other)
-      : m_allocator(std::exchange(other.m_allocator, nullptr)),
-        m_ptr(std::exchange(other.m_ptr, nullptr)),
-        m_size(std::exchange(other.m_size, 0)) {}
-
-    D3D9Memory::~D3D9Memory() {
-      this->Free();
-    }
-
-    D3D9Memory& D3D9Memory::operator = (D3D9Memory&& other) {
-      this->Free();
-
-      m_allocator = std::exchange(other.m_allocator, nullptr);
-      m_ptr = std::exchange(other.m_ptr, nullptr);
-      m_size = std::exchange(other.m_size, 0);
-      return *this;
-    }
-
-    void D3D9Memory::Free() {
-      if (!m_ptr)
-        return;
-
-      m_allocator->NotifyFreed(m_size);
-
-      std::free(m_ptr);
-    }
-
+    free(m_ptr);
+    m_ptr = nullptr;
+    m_allocator->NotifyFreed(m_size);
+  }
 #endif
 
 }
