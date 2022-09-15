@@ -55,7 +55,8 @@ namespace dxvk {
     , m_multithread     ( BehaviorFlags & D3DCREATE_MULTITHREADED )
     , m_isSWVP          ( (BehaviorFlags & D3DCREATE_SOFTWARE_VERTEXPROCESSING) ? true : false )
     , m_csThread        ( dxvkDevice, dxvkDevice->createContext(DxvkContextType::Primary) )
-/*TODO_MERGE: =======
+    , m_stagingBuffer   ( dxvkDevice, StagingBufferSize )
+  /*TODO_MERGE: =======
     
     , m_shaderModules   ( new D3D9ShaderModuleSet )
     , m_stagingBuffer   ( dxvkDevice, StagingBufferSize )

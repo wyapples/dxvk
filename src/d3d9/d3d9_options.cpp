@@ -72,15 +72,6 @@ namespace dxvk {
     this->forceD32FS8DepthStencil       = config.getOption<bool>        ("d3d9.forceD32FS8DepthStencil",       false);
     this->allowDirectBufferMapping      = config.getOption<bool>        ("d3d9.allowDirectBufferMapping",      false);
     this->unmapDelay                    = config.getOption<int32_t>     ("d3d9.unmapDelay",                    1);
-
-    // If we are not Nvidia, enable general hazards.
-    this->generalHazards = adapter != nullptr
-                        && !adapter->matchesDriver(
-                            DxvkGpuVendor::Nvidia,
-                            VK_DRIVER_ID_NVIDIA_PROPRIETARY_KHR,
-                            0, 0);
-    applyTristate(this->generalHazards, config.getOption<Tristate>("d3d9.generalHazards", Tristate::Auto));
-
     this->allowDirectBufferMapping      = config.getOption<bool>        ("d3d9.allowDirectBufferMapping",      true);
     this->seamlessCubes                 = config.getOption<bool>        ("d3d9.seamlessCubes",                 false);
     this->textureMemory                 = config.getOption<int32_t>     ("d3d9.textureMemory",                100) << 20;

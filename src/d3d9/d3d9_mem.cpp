@@ -15,8 +15,7 @@ namespace dxvk {
 
 #ifdef D3D9_ALLOW_UNMAPPING
 #ifndef UNMAP_V1
-  D3D9MemoryAllocator::D3D9MemoryAllocator()
-  {
+  D3D9MemoryAllocator::D3D9MemoryAllocator() {
     SYSTEM_INFO sysInfo;
     GetSystemInfo(&sysInfo);
     m_allocationGranularity = sysInfo.dwAllocationGranularity;
