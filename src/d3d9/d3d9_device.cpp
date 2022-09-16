@@ -49,22 +49,13 @@ namespace dxvk {
     , m_adapter         ( pAdapter )
     , m_dxvkDevice      ( dxvkDevice )
     , m_memoryAllocator ( )
-    , m_shaderAllocator()
+ //   , m_shaderAllocator()
     , m_shaderModules   ( new D3D9ShaderModuleSet )
     , m_d3d9Options     ( dxvkDevice, pParent->GetInstance()->config() )
     , m_multithread     ( BehaviorFlags & D3DCREATE_MULTITHREADED )
     , m_isSWVP          ( (BehaviorFlags & D3DCREATE_SOFTWARE_VERTEXPROCESSING) ? true : false )
     , m_csThread        ( dxvkDevice, dxvkDevice->createContext(DxvkContextType::Primary) )
     , m_stagingBuffer   ( dxvkDevice, StagingBufferSize )
-  /*TODO_MERGE: =======
-    
-    , m_shaderModules   ( new D3D9ShaderModuleSet )
-    , m_stagingBuffer   ( dxvkDevice, StagingBufferSize )
-    , m_d3d9Options     ( dxvkDevice, pParent->GetInstance()->config() )
-    , m_multithread     ( BehaviorFlags & D3DCREATE_MULTITHREADED )
-    , m_isSWVP          ( (BehaviorFlags & D3DCREATE_SOFTWARE_VERTEXPROCESSING) ? true : false )
-    , m_csThread        ( dxvkDevice, dxvkDevice->createContext(DxvkContextType::Primary) )
->>>>>>> master*/
     , m_csChunk         ( AllocCsChunk() ) {
     // If we can SWVP, then we use an extended constant set
     // as SWVP has many more slots available than HWVP.
