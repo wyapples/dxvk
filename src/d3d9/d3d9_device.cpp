@@ -4836,6 +4836,7 @@ namespace dxvk {
     WaitStagingBuffer();
 
     auto dstBuffer = pResource->GetBufferSlice<D3D9_COMMON_BUFFER_TYPE_REAL>();
+    auto srcSlice = pResource->GetMappedSlice();
 
     void* srcMapPtr;
     if (pResource->GetMapMode() != D3D9_COMMON_BUFFER_MAP_MODE_BUFFER_UNMAPPABLE)
@@ -4845,7 +4846,7 @@ namespace dxvk {
 
     D3D9Range& range = pResource->DirtyRange();
 
-//<<<<<<< HEAD
+/*TODO_MEREGE: remove
     DxvkBufferSlice copySrcSlice;
     if (pResource->DoesStagingBufferUploads()) {
       D3D9BufferSlice slice = AllocTempBuffer<false>(range.max - range.min);
@@ -4855,11 +4856,10 @@ namespace dxvk {
     } else {
       copySrcSlice = DxvkBufferSlice(pResource->GetBuffer<D3D9_COMMON_BUFFER_TYPE_MAPPING>(), range.min, range.max - range.min);
     }
-/*TODO_MEREGE: =======
+    */
     D3D9BufferSlice slice = AllocStagingBuffer(range.max - range.min);
     void* srcData = reinterpret_cast<uint8_t*>(srcSlice.mapPtr) + range.min;
     memcpy(slice.mapPtr, srcData, range.max - range.min);
->>>>>>> master*/
 
     EmitCs([
       cDstSlice  = dstBuffer,
@@ -5462,10 +5462,7 @@ namespace dxvk {
 
   void D3D9DeviceEx::UploadManagedTexture(D3D9CommonTexture* pResource) {
     for (uint32_t subresource = 0; subresource < pResource->CountSubresources(); subresource++) {
-      if (!pResource->NeedsUpload(subresource) || pResource->GetLockingData(subresource) == nullptr)
-/*TODO_MERGE:=======
       if (!pResource->NeedsUpload(subresource))
->>>>>>> master*/
         continue;
 
       this->FlushImage(pResource, subresource);
@@ -7440,21 +7437,21 @@ namespace dxvk {
 
   void* D3D9DeviceEx::MapTexture(D3D9CommonTexture* pTexture, UINT Subresource) {
     // Will only be called inside the device lock
-    void *ptr = pTexture->GetLockingData(Subresource);
-
+    void *ptr = pTexture->GetData(Subresource);
+#ifdef UNMAP_V1
 #ifdef D3D9_ALLOW_UNMAPPING
     if (pTexture->GetMapMode() == D3D9_COMMON_TEXTURE_MAP_MODE_UNMAPPABLE) {
       m_mappedTextures.insert(pTexture);
       pTexture->SetMappingFrame(m_frameCounter);
-/*TODO_MERGE: =======
-    void *ptr = pTexture->GetData(Subresource);
 
+#else
 #ifdef D3D9_ALLOW_UNMAPPING
     if (likely(pTexture->GetMapMode() == D3D9_COMMON_TEXTURE_MAP_MODE_UNMAPPABLE)) {
       m_mappedTextures.insert(pTexture);
->>>>>>> master*/
-    }
 #endif
+#endif
+    }
+
 
     return ptr;
   }
@@ -7556,7 +7553,7 @@ namespace dxvk {
         continue;
       }
 
-      (*iter)->UnmapLockingData();
+      (*iter)->UnmapData();
       iter = m_mappedTextures.erase(iter);
     }
 #endif
