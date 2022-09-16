@@ -196,7 +196,7 @@ namespace dxvk {
     return true;
   }
 
-  void* D3D9CommonTexture::GetLockingData(UINT Subresource) {
+  void* D3D9CommonTexture::GetData(UINT Subresource) {
     if (m_mapMode != D3D9_COMMON_TEXTURE_MAP_MODE_UNMAPPABLE)
       return m_mappedSlices[Subresource].mapPtr;
 

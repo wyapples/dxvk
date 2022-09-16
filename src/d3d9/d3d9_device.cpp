@@ -4288,7 +4288,7 @@ namespace dxvk {
     if ((Flags & D3DLOCK_DISCARD) && !pResource->DoesStagingBufferUploads(Subresource)) {
       // We do not have to preserve the contents of the
       // buffer if the entire image gets discarded.
-      pResource->CreateBufferSubresource(Subresource);
+      pResource->CreateBufferSubresource(Subresource, !needsReadback);
       DxvkBufferSliceHandle physSlice = pResource->DiscardMapSlice(Subresource);
       mapPtr = physSlice.mapPtr;
       const Rc<DxvkBuffer> mappedBuffer = pResource->GetBuffer(Subresource);

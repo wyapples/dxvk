@@ -163,7 +163,7 @@ namespace dxvk {
      * @return Pointer to locking data
      */
 #ifdef UNMAP_V1
-    void* GetLockingData(UINT Subresource);
+    void* GetData(UINT Subresource);
 
     const Rc<DxvkBuffer>& GetBuffer(UINT Subresource) {
       return m_buffers[Subresource];
@@ -264,7 +264,14 @@ namespace dxvk {
     //bool CreateBufferSubresource(UINT Subresource);
     void CreateBufferSubresource(UINT Subresource, bool Initialize);
 
-    void UnmapLockingData() {
+    /*void UnmapLockingData() {
+      const uint32_t subresources = CountSubresources();
+      for (uint32_t i = 0; i < subresources; i++) {
+        m_lockingData[i].Unmap();
+      }
+    }*/
+    void UnmapData()
+    {
       const uint32_t subresources = CountSubresources();
       for (uint32_t i = 0; i < subresources; i++) {
         m_lockingData[i].Unmap();
@@ -376,7 +383,7 @@ namespace dxvk {
 
     void SetNeedsReadback(UINT Subresource, bool value) { m_needsReadback.set(Subresource, value); }
 #ifdef UNMAP_V1
-    bool NeedsReachback(UINT Subresource) const { return m_needsReadback.get(Subresource); }
+    bool NeedsReadback(UINT Subresource) const { return m_needsReadback.get(Subresource); }
 #else
     bool NeedsReadback(UINT Subresource) const { return m_needsReadback.get(Subresource); }
 #endif
