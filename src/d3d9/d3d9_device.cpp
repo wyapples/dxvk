@@ -7462,7 +7462,8 @@ namespace dxvk {
       return;
 
     D3D9DeviceLock lock = LockDevice();
-//<<<<<<< HEAD
+>>>>>>>>>>>>>>>>>>>>>
+      //<<<<<<< HEAD
     pTexture->SetMappingFrame(m_frameCounter);
 /*TODO_MERGE:=======
     m_mappedTextures.touch(pTexture);
