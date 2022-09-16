@@ -4305,6 +4305,7 @@ namespace dxvk {
         ctx->invalidateBuffer(cImageBuffer, cBufferSlice);
       });
     } else {
+/*TODO_MERGE: remove
       const bool alloced = pResource->AllocLockingData(Subresource);
       mapPtr = MapTexture(pResource, Subresource);
 
@@ -4320,13 +4321,11 @@ namespace dxvk {
         VkDeviceSize size = pResource->GetMipSize(Subresource);
         std::memset(mapPtr, 0, size);
       }
-      else if (!skipWait) {
-/*TODO_MERGE: =======
+      else if (!skipWait) {*/
       // Don't use MapTexture here to keep the mapped list small while the resource is still locked.
       mapPtr = pResource->GetData(Subresource);
 
       if (needsReadback) {
->>>>>>> master*/
         const Rc<DxvkBuffer> mappedBuffer = pResource->GetBuffer(Subresource);
         if (unlikely(needsReadback) && pResource->GetImage() != nullptr) {
           Rc<DxvkImage> resourceImage = pResource->GetImage();
