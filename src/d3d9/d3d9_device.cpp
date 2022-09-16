@@ -4274,7 +4274,7 @@ namespace dxvk {
     // a depth stencil, or auto generate mipmaps.
     bool needsReadback = pResource->NeedsReadback(Subresource) || renderable;
     pResource->SetNeedsReadback(Subresource, false);
-    >>>>
+/* TODO_MERGE: remove
     void* mapPtr;
     if ((Flags & D3DLOCK_DISCARD) && !pResource->DoesStagingBufferUploads(Subresource)) {
       // We do not have to preserve the contents of the
@@ -4283,21 +4283,20 @@ namespace dxvk {
       DxvkBufferSliceHandle physSlice = pResource->DiscardMapSlice(Subresource);
       mapPtr = physSlice.mapPtr;
       const Rc<DxvkBuffer> mappedBuffer = pResource->GetBuffer(Subresource);
-/* TODO_MERGE: =======
+#else*/
     if (unlikely(pResource->GetMapMode() == D3D9_COMMON_TEXTURE_MAP_MODE_BACKED || needsReadback)) {
       // Create mapping buffer if it doesn't exist yet. (POOL_DEFAULT)
       pResource->CreateBufferSubresource(Subresource, !needsReadback);
     }
 
     void* mapPtr;
-
     if ((Flags & D3DLOCK_DISCARD) && needsReadback) {
       // We do not have to preserve the contents of the
       // buffer if the entire image gets discarded.
       const Rc<DxvkBuffer> mappedBuffer = pResource->GetBuffer(Subresource);
       DxvkBufferSliceHandle physSlice = pResource->DiscardMapSlice(Subresource);
       mapPtr = physSlice.mapPtr;
->>>>>>> master*/
+//#endif
 
       EmitCs([
         cImageBuffer = std::move(mappedBuffer),
