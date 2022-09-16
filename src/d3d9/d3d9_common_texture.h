@@ -261,7 +261,8 @@ namespace dxvk {
      * allocates new buffers if necessary
      * \returns Whether an allocation happened
      */
-    bool CreateBufferSubresource(UINT Subresource);
+    //bool CreateBufferSubresource(UINT Subresource);
+    void CreateBufferSubresource(UINT Subresource, bool Initialize);
 
     void UnmapLockingData() {
       const uint32_t subresources = CountSubresources();

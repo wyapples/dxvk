@@ -40,8 +40,12 @@ namespace dxvk {
     m_mapMode        = DetermineMapMode();
     m_shadow         = DetermineShadowState();
     m_supportsFetch4 = DetermineFetch4Compatibility();
-
+#ifdef UNMAP_V1
     if (m_mapMode == D3D9_COMMON_TEXTURE_MAP_MODE_BACKED || m_mapMode == D3D9_COMMON_TEXTURE_MAP_MODE_UNMAPPABLE) {
+#else
+    const bool createImage = m_desc.Pool != D3DPOOL_SYSTEMMEM && m_desc.Pool != D3DPOOL_SCRATCH && m_desc.Format != D3D9Format::NULL_FORMAT;
+    if (createImage) {
+#endif
       bool plainSurface = m_type == D3DRTYPE_SURFACE &&
                           !(m_desc.Usage & (D3DUSAGE_RENDERTARGET | D3DUSAGE_DEPTHSTENCIL));
 
@@ -68,13 +72,23 @@ namespace dxvk {
       CreateSampleView(0);
 
       if (!IsManaged()) {
+#ifdef UNMAP_V1
+        m_size = m_image->memory().length();
+#else
         m_size = m_image->memSize();
+#endif
         if (!m_device->ChangeReportedMemory(-m_size))
           throw DxvkError("D3D9: Reporting out of memory from tracking.");
       }
     }
 
+#ifdef UNMAP_V1
     if (m_mapMode == D3D9_COMMON_TEXTURE_MAP_MODE_SYSTEMMEM)
+#else
+    if (m_mapMode == D3D9_COMMON_TEXTURE_MAP_MODE_UNMAPPABLE)
+      AllocData();
+    else if (m_mapMode != D3D9_COMMON_TEXTURE_MAP_MODE_NONE && m_desc.Pool != D3DPOOL_DEFAULT)
+#endif
       CreateBuffers();
 
     m_exposedMipLevels = m_desc.MipLevels;
@@ -136,8 +150,8 @@ namespace dxvk {
 
     if (pDesc->Width == 0 || pDesc->Height == 0 || pDesc->Depth == 0)
       return D3DERR_INVALIDCALL;
-    
-    if (FAILED(DecodeMultiSampleType(pDesc->MultiSample, pDesc->MultisampleQuality, nullptr)))
+
+    if (FAILED(DecodeMultiSampleType(pDevice->GetDXVKDevice(), pDesc->MultiSample, pDesc->MultisampleQuality, nullptr)))
       return D3DERR_INVALIDCALL;
 
     // Using MANAGED pool with DYNAMIC usage is illegal
@@ -168,6 +182,7 @@ namespace dxvk {
     return D3D_OK;
   }
 
+#ifdef UNMAP_V1
   bool D3D9CommonTexture::AllocLockingData(UINT Subresource) {
     if (m_mapMode != D3D9_COMMON_TEXTURE_MAP_MODE_UNMAPPABLE)
       return CreateBufferSubresource(Subresource);
@@ -189,41 +204,58 @@ namespace dxvk {
     memory.Map();
     return memory.Ptr();
   }
+#else
+  void* D3D9CommonTexture::GetData(UINT Subresource) {
+    if (unlikely(m_mappedSlices[Subresource].mapPtr != nullptr || m_mapMode != D3D9_COMMON_TEXTURE_MAP_MODE_UNMAPPABLE))
+      return m_mappedSlices[Subresource].mapPtr;
 
-  bool D3D9CommonTexture::CreateBufferSubresource(UINT Subresource) {
-    if (m_buffers[Subresource] != nullptr)
-      return false;
+    D3D9Memory& memory = m_data[Subresource];
+    memory.Map();
+    return memory.Ptr();
+  }
+#endif
+
+ void D3D9CommonTexture::CreateBufferSubresource(UINT Subresource, bool Initialize) {
+    if (likely(m_buffers[Subresource] != nullptr)) {
+      return;
+    }
 
     DxvkBufferCreateInfo info;
     info.size   = GetMipSize(Subresource);
     info.usage  = VK_BUFFER_USAGE_TRANSFER_SRC_BIT
                 | VK_BUFFER_USAGE_TRANSFER_DST_BIT
                 | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-    info.stages = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    info.stages = VK_PIPELINE_STAGE_TRANSFER_BIT
+                | VK_PIPELINE_STAGE_HOST_BIT;
     info.access = VK_ACCESS_TRANSFER_READ_BIT
-                | VK_ACCESS_TRANSFER_WRITE_BIT;
-
-    if (m_mapping.ConversionFormatInfo.FormatType != D3D9ConversionFormat_None) {
-      info.usage  |= VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT;
-      info.stages |= VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-    }
-
+                | VK_ACCESS_TRANSFER_WRITE_BIT
+                | VK_ACCESS_HOST_WRITE_BIT
+                | VK_ACCESS_HOST_READ_BIT;
     VkMemoryPropertyFlags memType = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
                                   | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
                                   | VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
 
     m_buffers[Subresource] = m_device->GetDXVKDevice()->createBuffer(info, memType);
     m_mappedSlices[Subresource] = m_buffers[Subresource]->getSliceHandle();
-
-    return true;
-  }
+#ifndef UNMAP_V1
+    if (Initialize) {
+      if (m_data[Subresource]) {
+        m_data[Subresource].Map();
+        memcpy(m_mappedSlices[Subresource].mapPtr, m_data[Subresource].Ptr(), info.size);
+      } else {
+        memset(m_mappedSlices[Subresource].mapPtr, 0, info.size);
+      }
+    }
+    m_data[Subresource] = {};
+ #endif
+ }
 
 
   VkDeviceSize D3D9CommonTexture::GetMipSize(UINT Subresource) const {
     const UINT MipLevel = Subresource % m_desc.MipLevels;
 
     const DxvkFormatInfo* formatInfo = m_mapping.FormatColor != VK_FORMAT_UNDEFINED
-      ? imageFormatInfo(m_mapping.FormatColor)
+      ? lookupFormatInfo(m_mapping.FormatColor)
       : m_device->UnsupportedFormatInfo(m_desc.Format);
 
     const VkExtent3D mipExtent = util::computeMipLevelExtent(
@@ -282,12 +314,12 @@ namespace dxvk {
       imageInfo.stages |= VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
     }
 
-    DecodeMultiSampleType(m_desc.MultiSample, m_desc.MultisampleQuality, &imageInfo.sampleCount);
+    DecodeMultiSampleType(m_device->GetDXVKDevice(), m_desc.MultiSample, m_desc.MultisampleQuality, &imageInfo.sampleCount);
 
     // The image must be marked as mutable if it can be reinterpreted
     // by a view with a different format. Depth-stencil formats cannot
     // be reinterpreted in Vulkan, so we'll ignore those.
-    auto formatProperties = imageFormatInfo(m_mapping.FormatColor);
+    auto formatProperties = lookupFormatInfo(m_mapping.FormatColor);
 
     bool isMutable     = m_mapping.FormatSrgb != VK_FORMAT_UNDEFINED;
     bool isColorFormat = (formatProperties->aspectMask & VK_IMAGE_ASPECT_COLOR_BIT) != 0;
@@ -299,21 +331,30 @@ namespace dxvk {
       imageInfo.viewFormats     = m_mapping.Formats;
     }
 
+    const bool hasAttachmentFeedbackLoops =
+      m_device->GetDXVKDevice()->features().extAttachmentFeedbackLoopLayout.attachmentFeedbackLoopLayout;
+    const bool isRT = m_desc.Usage & D3DUSAGE_RENDERTARGET;
+    const bool isDS = m_desc.Usage & D3DUSAGE_DEPTHSTENCIL;
+    const bool isAutoGen = m_desc.Usage & D3DUSAGE_AUTOGENMIPMAP;
+
     // Are we an RT, need to gen mips or an offscreen plain surface?
-    if (m_desc.Usage & (D3DUSAGE_RENDERTARGET | D3DUSAGE_AUTOGENMIPMAP) || TryOffscreenRT) {
+    if (isRT || isAutoGen || TryOffscreenRT) {
       imageInfo.usage  |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
       imageInfo.stages |= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
       imageInfo.access |= VK_ACCESS_COLOR_ATTACHMENT_READ_BIT
                        |  VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
     }
 
-    if (m_desc.Usage & D3DUSAGE_DEPTHSTENCIL) {
+    if (isDS) {
       imageInfo.usage  |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
       imageInfo.stages |= VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT
                        |  VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
       imageInfo.access |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT
                        |  VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
     }
+
+    if (ResourceType == D3DRTYPE_TEXTURE && (isRT || isDS) && hasAttachmentFeedbackLoops)
+      imageInfo.usage |= VK_IMAGE_USAGE_ATTACHMENT_FEEDBACK_LOOP_BIT_EXT;
 
     if (ResourceType == D3DRTYPE_CUBETEXTURE)
       imageInfo.flags |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
