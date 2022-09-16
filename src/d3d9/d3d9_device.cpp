@@ -4764,14 +4764,14 @@ namespace dxvk {
     if (Flags & D3DLOCK_DISCARD && !usesStagingBuffer) {
     */
     DxvkBufferSliceHandle physSlice;
-
+    void* mapPtr;
     if ((Flags & D3DLOCK_DISCARD) && (directMapping || needsReadback)) {
 
       // Allocate a new backing slice for the buffer and set
       // it as the 'new' mapped slice. This assumes that the
       // only way to invalidate a buffer is by mapping it.
 
-      DxvkBufferSliceHandle physSlice = pResource->DiscardMapSlice();
+      physSlice = pResource->DiscardMapSlice();
       mapPtr = physSlice.mapPtr;
 
       EmitCs([
