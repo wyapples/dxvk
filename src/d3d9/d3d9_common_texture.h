@@ -252,7 +252,7 @@ namespace dxvk {
     void CreateBuffers() {
       const uint32_t count = CountSubresources();
       for (uint32_t i = 0; i < count; i++)
-        CreateBufferSubresource(i);
+        CreateBufferSubresource(i, false);
     }
 
     /**
