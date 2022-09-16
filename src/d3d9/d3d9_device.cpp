@@ -4437,11 +4437,10 @@ namespace dxvk {
         pResource->AddDirtyBox(pBox, Face);
       }
     }
-
+/*TODO_MERGE:remove
     if (managed && !readOnly) {
-/*TODO_MERGE:=======
+    */
     if (IsPoolManaged(desc.Pool) && !readOnly) {
->>>>>>> master*/
       pResource->SetNeedsUpload(Subresource, true);
 
       for (uint32_t i : bit::BitMask(m_activeTextures)) {
@@ -4599,7 +4598,7 @@ namespace dxvk {
       VkDeviceSize copySrcOffset = srcOffsetBlockCount.z * srcTexLevelExtentBlockCount.height * pitch
           + srcOffsetBlockCount.y * pitch
           + srcOffsetBlockCount.x * formatInfo->elementSize;
-
+/* TODO_MERGE: remove
       VkDeviceSize sliceAlignment = 1;
       VkDeviceSize rowAlignment = 1;
       DxvkBufferSlice copySrcSlice;
@@ -4627,7 +4626,7 @@ namespace dxvk {
         rowAlignment = pitch;
         sliceAlignment = srcTexLevelExtentBlockCount.height * pitch;
       }
-/* TODO_MERGE:=======
+      */
       const void* mapPtr = MapTexture(pSrcTexture, SrcSubresource);
       VkDeviceSize dirtySize = extentBlockCount.width * extentBlockCount.height * extentBlockCount.depth * formatInfo->elementSize;
       D3D9BufferSlice slice = AllocStagingBuffer(dirtySize);
@@ -4635,7 +4634,6 @@ namespace dxvk {
       util::packImageData(
         slice.mapPtr, srcData, extentBlockCount, formatInfo->elementSize,
         pitch, pitch * srcTexLevelExtentBlockCount.height);
->>>>>>> master*/
 
       EmitCs([
         cSrcSlice       = slice.slice,
@@ -4654,12 +4652,12 @@ namespace dxvk {
       TrackTextureMappingBufferSequenceNumber(pSrcTexture, SrcSubresource);
     }
     else {
+/*TODO_MERGE: remove
       const DxvkFormatInfo* formatInfo = imageFormatInfo(pDestTexture->GetFormatMapping().FormatColor);
       const DxvkBufferSliceHandle srcSlice = pSrcTexture->GetMappedSlice(SrcSubresource);
-/*TODO_MERGE: =======
+      */
       const DxvkFormatInfo* formatInfo = lookupFormatInfo(pDestTexture->GetFormatMapping().FormatColor);
       const void* mapPtr = MapTexture(pSrcTexture, SrcSubresource);
->>>>>>> master*/
       // Add more blocks for the other planes that we might have.
       // TODO: PLEASE CLEAN ME
       srcTexLevelExtentBlockCount.height *= std::min(convertFormat.PlaneCount, 2u);
@@ -4759,15 +4757,16 @@ namespace dxvk {
     const bool needsReadback = pResource->NeedsReadback();
 
     Rc<DxvkBuffer> mappingBuffer = pResource->GetBuffer<D3D9_COMMON_BUFFER_TYPE_MAPPING>();
+/*TODO_MERGE: remove
     const bool usesStagingBuffer = pResource->DoesStagingBufferUploads();
     void* mapPtr;
 
     if (Flags & D3DLOCK_DISCARD && !usesStagingBuffer) {
-/*TODO_MERGE: =======
+    */
     DxvkBufferSliceHandle physSlice;
 
     if ((Flags & D3DLOCK_DISCARD) && (directMapping || needsReadback)) {
->>>>>>> master*/
+
       // Allocate a new backing slice for the buffer and set
       // it as the 'new' mapped slice. This assumes that the
       // only way to invalidate a buffer is by mapping it.
