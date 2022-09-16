@@ -943,22 +943,23 @@ namespace dxvk {
     D3D9MemoryAllocator* GetAllocator() {
       return &m_memoryAllocator;
     }
-
+#ifdef UNMAP_V1
     void BumpFrame() {
       m_frameCounter++;
       UnmapTextures();
       UnmapBuffers();
     }
-
+#endif
     void* MapTexture(D3D9CommonTexture* pTexture, UINT Subresource);
     void TouchMappedTexture(D3D9CommonTexture* pTexture);
     void RemoveMappedTexture(D3D9CommonTexture* pTexture);
-
+#ifdef UNMAP_V1
     void* MapBuffer(D3D9CommonBuffer* pBuffer);
     // VL: unlike textures, we only consider buffer being used if it was
     // actually mapped.  Currently that's when buffer is locked.  So, this is dead code.
     void TouchMappedBuffer(D3D9CommonBuffer* pBuffer);
     void RemoveMappedBuffer(D3D9CommonBuffer* pBuffer);
+#endif
 
   private:
 
@@ -1329,16 +1330,18 @@ namespace dxvk {
 
     uint64_t                        m_frameCounter = 0;
 
+#ifdef UNMAP_V1
 #ifdef D3D9_ALLOW_UNMAPPING
     std::unordered_set<D3D9CommonTexture*> m_mappedTextures;
     std::unordered_set<D3D9CommonBuffer*> m_mappedBuffers;
 #endif
 
-/* TODO_MERGE: =======
+#else
+
 #ifdef D3D9_ALLOW_UNMAPPING
     lru_list<D3D9CommonTexture*>    m_mappedTextures;
 #endif
->>>>>>> master*/
+#endif
   };
 
 }
