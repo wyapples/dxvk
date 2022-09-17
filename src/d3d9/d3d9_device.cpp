@@ -7505,7 +7505,6 @@ namespace dxvk {
     auto iter = m_mappedBuffers.leastRecentlyUsedIter();
     while (m_memoryAllocator.MappedMemory() >= threshold &&
            iter != m_mappedBuffers.leastRecentlyUsedEndIter()) {
-      //if (unlikely((*iter)->IsAnySubresourceLocked() != 0)) {
       if (unlikely((*iter)->GetLockCount() != 0)) {
         iter++;
         continue;
@@ -7516,26 +7515,6 @@ namespace dxvk {
       iter = m_mappedBuffers.remove(iter);
     }
 #endif
-
-/*    TODO_MERGE: if (m_d3d9Options.unmapDelay == 0)
-      return;
-
-    const bool force = m_memoryAllocator.MappedMemory() > 512 << 20;
-    for (auto iter = m_mappedBuffers.begin(); iter != m_mappedBuffers.end();) {
-      const bool mappingBufferUnused =
-        (m_frameCounter - (*iter)->GetMappingFrame() >
-           uint32_t(m_d3d9Options.unmapDelay) ||
-         force) &&
-        ((*iter)->GetLockCount() == 0u);
-      if (!mappingBufferUnused) {
-        iter++;
-        continue;
-      }
-
-      (*iter)->UnmapLockingData();
-      iter = m_mappedBuffers.erase(iter);
-    }
-#endif*/
   }
 
 
