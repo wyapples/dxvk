@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../dxvk/dxvk_device.h"
+#include "../dxvk/dxvk_cs.h"
 
 #include "d3d9_device_child.h"
 #include "d3d9_format.h"
@@ -155,11 +156,6 @@ namespace dxvk {
     inline D3D9Range& DirtyRange()  { return m_dirtyRange; }
 
     /**
-     * \brief The range of the buffer that might currently be read by the GPU
-     */
-    inline D3D9Range& GPUReadingRange() { return m_gpuReadingRange; }
-
-    /**
     * \brief Whether or not the buffer was written to by the GPU (in IDirect3DDevice9::ProcessVertices)
     */
     inline bool NeedsReadback() const     { return m_needsReadback; }
@@ -183,16 +179,11 @@ namespace dxvk {
      */
     inline bool NeedsUpload() { return m_desc.Pool != D3DPOOL_DEFAULT && !m_dirtyRange.IsDegenerate(); }
 
-    inline bool DoesStagingBufferUploads() const { return m_uploadUsingStaging; }
-
-    inline void EnableStagingBufferUploads() {
-      if (GetMapMode() != D3D9_COMMON_BUFFER_MAP_MODE_BUFFER)
-        return;
-
-      m_uploadUsingStaging = true;
-    }
-
     void PreLoad();
+
+    bool HasSequenceNumber() const {
+      return m_mapMode != D3D9_COMMON_BUFFER_MAP_MODE_DIRECT;
+    }
 
      /**
      * \brief Tracks sequence number
@@ -213,7 +204,8 @@ namespace dxvk {
      * \returns Sequence number for the given subresource
      */
     uint64_t GetMappingBufferSequenceNumber() const {
-      return m_seq;
+      return HasSequenceNumber() ? m_seq
+        : DxvkCsThread::SynchronizeAll;
     }
 
   private:
@@ -246,7 +238,6 @@ namespace dxvk {
     DxvkBufferSliceHandle       m_sliceHandle;
 
     D3D9Range                   m_dirtyRange;
-    D3D9Range                   m_gpuReadingRange;
 
     uint32_t                    m_lockCount = 0;
 

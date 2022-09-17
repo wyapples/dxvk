@@ -2,6 +2,8 @@
 #include "d3d11_device.h"
 #include "d3d11_swapchain.h"
 
+#include "../util/util_win32_compat.h"
+
 namespace dxvk {
 
   static uint16_t MapGammaControlPoint(float x) {
@@ -21,7 +23,7 @@ namespace dxvk {
     m_window    (hWnd),
     m_desc      (*pDesc),
     m_device    (pDevice->GetDXVKDevice()),
-    m_context   (m_device->createContext()),
+    m_context   (m_device->createContext(DxvkContextType::Supplementary)),
     m_frameLatencyCap(pDevice->GetOptions()->maxFrameLatency) {
     CreateFrameLatencyEvent();
 
@@ -35,12 +37,14 @@ namespace dxvk {
 
 
   D3D11SwapChain::~D3D11SwapChain() {
+    // Avoids hanging when in this state, see comment
+    // in DxvkDevice::~DxvkDevice.
+    if (this_thread::isInModuleDetachment())
+      return;
+
     m_device->waitForSubmission(&m_presentStatus);
     m_device->waitForIdle();
     
-    if (m_backBuffer)
-      m_backBuffer->ReleasePrivate();
-
     DestroyFrameLatencyEvent();
   }
 
@@ -111,7 +115,18 @@ namespace dxvk {
 
 
   HANDLE STDMETHODCALLTYPE D3D11SwapChain::GetFrameLatencyEvent() {
-    return m_frameLatencyEvent;
+    HANDLE result = nullptr;
+
+    if (!m_processHandle)
+      m_processHandle = GetCurrentProcess();
+
+    if (!DuplicateHandle(m_processHandle, m_frameLatencyEvent,
+        m_processHandle, &result, 0, FALSE, DUPLICATE_SAME_ACCESS)) {
+      Logger::err("DxgiSwapChain::GetFrameLatencyWaitableObject: DuplicateHandle failed");
+      return nullptr;
+    }
+
+    return result;
   }
 
 
@@ -250,9 +265,6 @@ namespace dxvk {
       DXGI_RATIONAL rate = pDisplayMode->RefreshRate;
       m_displayRefreshRate = double(rate.Numerator) / double(rate.Denominator);
     }
-
-    if (m_presenter != nullptr)
-      m_presenter->setFrameRateLimiterRefreshRate(m_displayRefreshRate);
   }
 
 
@@ -262,6 +274,7 @@ namespace dxvk {
 
     // Flush pending rendering commands before
     auto immediateContext = static_cast<D3D11ImmediateContext*>(deviceContext.ptr());
+    immediateContext->EndFrame();
     immediateContext->Flush();
 
     // Bump our frame id.
@@ -330,8 +343,8 @@ namespace dxvk {
       cHud         = m_hud,
       cCommandList = m_context->endRecording()
     ] (DxvkContext* ctx) {
-      m_device->submitCommandList(cCommandList,
-        cSync.acquire, cSync.present);
+      cCommandList->setWsiSemaphores(cSync);
+      m_device->submitCommandList(cCommandList);
 
       if (cHud != nullptr && !cFrameId)
         cHud->update();
@@ -388,7 +401,7 @@ namespace dxvk {
     presenterDevice.queueFamily   = graphicsQueue.queueFamily;
     presenterDevice.queue         = graphicsQueue.queueHandle;
     presenterDevice.adapter       = m_device->adapter()->handle();
-    presenterDevice.features.fullScreenExclusive = m_device->extensions().extFullScreenExclusive;
+    presenterDevice.features.fullScreenExclusive = m_device->features().extFullScreenExclusive;
 
     vk::PresenterDesc presenterDesc;
     presenterDesc.imageExtent     = { m_desc.Width, m_desc.Height };
@@ -404,7 +417,6 @@ namespace dxvk {
       presenterDesc);
     
     m_presenter->setFrameRateLimit(m_parent->GetOptions()->maxFrameRate);
-    m_presenter->setFrameRateLimiterRefreshRate(m_displayRefreshRate);
 
     CreateRenderTargetViews();
   }
@@ -445,7 +457,7 @@ namespace dxvk {
       VkImage imageHandle = m_presenter->getImage(i).image;
       
       Rc<DxvkImage> image = new DxvkImage(
-        m_device->vkd(), imageInfo, imageHandle);
+        m_device.ptr(), imageInfo, imageHandle);
 
       m_imageViews[i] = new DxvkImageView(
         m_device->vkd(), image, viewInfo);
@@ -456,9 +468,6 @@ namespace dxvk {
   void D3D11SwapChain::CreateBackBuffer() {
     // Explicitly destroy current swap image before
     // creating a new one to free up resources
-    if (m_backBuffer)
-      m_backBuffer->ReleasePrivate();
-    
     m_swapImage         = nullptr;
     m_swapImageView     = nullptr;
     m_backBuffer        = nullptr;
@@ -496,10 +505,8 @@ namespace dxvk {
      || m_desc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_DISCARD)
       dxgiUsage |= DXGI_USAGE_DISCARD_ON_PRESENT;
 
-    m_backBuffer = new D3D11Texture2D(m_parent, &desc, dxgiUsage, VK_NULL_HANDLE);
-    m_backBuffer->AddRefPrivate();
-
-    m_swapImage = GetCommonTexture(m_backBuffer)->GetImage();
+    m_backBuffer = new D3D11Texture2D(m_parent, this, &desc, dxgiUsage);
+    m_swapImage = GetCommonTexture(m_backBuffer.ptr())->GetImage();
 
     // Create an image view that allows the
     // image to be bound as a shader resource.
@@ -530,9 +537,7 @@ namespace dxvk {
       subresources, VK_IMAGE_LAYOUT_UNDEFINED);
 
     m_device->submitCommandList(
-      m_context->endRecording(),
-      VK_NULL_HANDLE,
-      VK_NULL_HANDLE);
+      m_context->endRecording());
   }
 
 
@@ -567,7 +572,10 @@ namespace dxvk {
 
 
   uint32_t D3D11SwapChain::GetActualFrameLatency() {
-    uint32_t maxFrameLatency = m_frameLatency;
+    // DXGI does not seem to implicitly synchronize waitable swap chains,
+    // so in that case we should just respect the user config. For regular
+    // swap chains, pick the latency from the DXGI device.
+    uint32_t maxFrameLatency = DXGI_MAX_SWAP_CHAIN_BUFFERS;
 
     if (!(m_desc.Flags & DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT))
       m_dxgiDevice->GetMaximumFrameLatency(&maxFrameLatency);
@@ -588,7 +596,8 @@ namespace dxvk {
     switch (Format) {
       default:
         Logger::warn(str::format("D3D11SwapChain: Unexpected format: ", m_desc.Format));
-        
+      [[fallthrough]];
+      
       case DXGI_FORMAT_R8G8B8A8_UNORM:
       case DXGI_FORMAT_B8G8R8A8_UNORM: {
         pDstFormats[n++] = { VK_FORMAT_R8G8B8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR };

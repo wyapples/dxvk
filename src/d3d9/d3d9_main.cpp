@@ -4,11 +4,14 @@
 #include "d3d9_shader_validator.h"
 #include "d3d9_vr.h"
 
+#include "d3d9_annotation.h"
+
 class D3DFE_PROCESSVERTICES;
 using PSGPERRORID = UINT;
 
 namespace dxvk {
   Logger Logger::s_instance("d3d9.log");
+  D3D9GlobalAnnotationList D3D9GlobalAnnotationList::s_instance;
 
   HRESULT CreateD3D9(
           bool           Extended,
@@ -20,6 +23,7 @@ namespace dxvk {
     return D3D_OK;
   }
 }
+
 
 extern "C" {
 
@@ -40,28 +44,31 @@ extern "C" {
   }
 
   DLLEXPORT int __stdcall D3DPERF_BeginEvent(D3DCOLOR col, LPCWSTR wszName) {
-    return 0;
+    return dxvk::D3D9GlobalAnnotationList::Instance().BeginEvent(col, wszName);
   }
 
   DLLEXPORT int __stdcall D3DPERF_EndEvent(void) {
-    return 0;
+    return dxvk::D3D9GlobalAnnotationList::Instance().EndEvent();
   }
 
   DLLEXPORT void __stdcall D3DPERF_SetMarker(D3DCOLOR col, LPCWSTR wszName) {
+    dxvk::D3D9GlobalAnnotationList::Instance().SetMarker(col, wszName);
   }
 
   DLLEXPORT void __stdcall D3DPERF_SetRegion(D3DCOLOR col, LPCWSTR wszName) {
+    dxvk::D3D9GlobalAnnotationList::Instance().SetRegion(col, wszName);
   }
 
   DLLEXPORT BOOL __stdcall D3DPERF_QueryRepeatFrame(void) {
-    return FALSE;
+    return dxvk::D3D9GlobalAnnotationList::Instance().QueryRepeatFrame();
   }
 
   DLLEXPORT void __stdcall D3DPERF_SetOptions(DWORD dwOptions) {
+    dxvk::D3D9GlobalAnnotationList::Instance().SetOptions(dwOptions);
   }
 
   DLLEXPORT DWORD __stdcall D3DPERF_GetStatus(void) {
-    return 0;
+    return dxvk::D3D9GlobalAnnotationList::Instance().GetStatus();
   }
 
 
@@ -87,6 +94,17 @@ extern "C" {
 
   DLLEXPORT int __stdcall Direct3D9EnableMaximizedWindowedModeShim(UINT a) {
     return 0;
+  }
+
+  DLLEXPORT void __stdcall DXVK_RegisterAnnotation(IDXVKUserDefinedAnnotation* annotation) {
+    dxvk::D3D9GlobalAnnotationList::Instance().RegisterAnnotator(annotation);
+  }
+
+  DLLEXPORT void __stdcall DXVK_UnRegisterAnnotation(IDXVKUserDefinedAnnotation* annotation) {
+    dxvk::D3D9GlobalAnnotationList::Instance().UnregisterAnnotator(annotation);
+  }
+
+  DLLEXPORT void __stdcall Direct3D9ForceHybridEnumeration(UINT uHybrid) {
   }
 
 }

@@ -8,8 +8,9 @@ namespace dxvk {
 
   D3D9Texture2D::D3D9Texture2D(
           D3D9DeviceEx*             pDevice,
-    const D3D9_COMMON_TEXTURE_DESC* pDesc)
-    : D3D9Texture2DBase( pDevice, pDesc, D3DRTYPE_TEXTURE ) { }
+    const D3D9_COMMON_TEXTURE_DESC* pDesc,
+          HANDLE*                   pSharedHandle)
+    : D3D9Texture2DBase( pDevice, pDesc, D3DRTYPE_TEXTURE, pSharedHandle ) { }
 
 
   HRESULT STDMETHODCALLTYPE D3D9Texture2D::QueryInterface(REFIID riid, void** ppvObject) {
@@ -86,7 +87,10 @@ namespace dxvk {
     // Some games keep using the pointer returned in LockRect() after calling Unlock()
     // and purely rely on AddDirtyRect to notify D3D9 that contents have changed.
     // We have no way of knowing which mip levels were actually changed.
-    m_texture.SetAllNeedUpload();
+    if (m_texture.IsManaged())
+      m_texture.SetAllNeedUpload();
+
+    m_parent->TouchMappedTexture(&m_texture);
     return D3D_OK;
   }
 
@@ -97,7 +101,7 @@ namespace dxvk {
   D3D9Texture3D::D3D9Texture3D(
           D3D9DeviceEx*             pDevice,
     const D3D9_COMMON_TEXTURE_DESC* pDesc)
-    : D3D9Texture3DBase( pDevice, pDesc, D3DRTYPE_VOLUMETEXTURE ) { }
+    : D3D9Texture3DBase( pDevice, pDesc, D3DRTYPE_VOLUMETEXTURE, nullptr ) { }
 
 
   HRESULT STDMETHODCALLTYPE D3D9Texture3D::QueryInterface(REFIID riid, void** ppvObject) {
@@ -168,7 +172,10 @@ namespace dxvk {
     // Some games keep using the pointer returned in LockBox() after calling Unlock()
     // and purely rely on AddDirtyBox to notify D3D9 that contents have changed.
     // We have no way of knowing which mip levels were actually changed.
-    m_texture.SetAllNeedUpload();
+    if (m_texture.IsManaged())
+      m_texture.SetAllNeedUpload();
+
+    m_parent->TouchMappedTexture(&m_texture);
     return D3D_OK;
   }
 
@@ -179,7 +186,7 @@ namespace dxvk {
   D3D9TextureCube::D3D9TextureCube(
           D3D9DeviceEx*             pDevice,
     const D3D9_COMMON_TEXTURE_DESC* pDesc)
-    : D3D9TextureCubeBase( pDevice, pDesc, D3DRTYPE_CUBETEXTURE ) { }
+    : D3D9TextureCubeBase( pDevice, pDesc, D3DRTYPE_CUBETEXTURE, nullptr ) { }
 
 
   HRESULT STDMETHODCALLTYPE D3D9TextureCube::QueryInterface(REFIID riid, void** ppvObject) {
@@ -256,9 +263,13 @@ namespace dxvk {
     // Some games keep using the pointer returned in LockRect() after calling Unlock()
     // and purely rely on AddDirtyRect to notify D3D9 that contents have changed.
     // We have no way of knowing which mip levels were actually changed.
-    for (uint32_t m = 0; m < m_texture.Desc()->MipLevels; m++) {
-      m_texture.SetNeedsUpload(m_texture.CalcSubresource(Face, m), true);
+    if (m_texture.IsManaged()) {
+      for (uint32_t m = 0; m < m_texture.Desc()->MipLevels; m++) {
+        m_texture.SetNeedsUpload(m_texture.CalcSubresource(Face, m), true);
+      }
     }
+
+    m_parent->TouchMappedTexture(&m_texture);
     return D3D_OK;
   }
 

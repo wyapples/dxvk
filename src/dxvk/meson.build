@@ -15,7 +15,7 @@ dxvk_shaders = files([
   'shaders/dxvk_clear_image2darr_f.comp',
   'shaders/dxvk_clear_image3d_u.comp',
   'shaders/dxvk_clear_image3d_f.comp',
-  
+
   'shaders/dxvk_copy_buffer_image.comp',
   'shaders/dxvk_copy_color_1d.frag',
   'shaders/dxvk_copy_color_2d.frag',
@@ -26,6 +26,8 @@ dxvk_shaders = files([
   'shaders/dxvk_copy_depth_stencil_1d.frag',
   'shaders/dxvk_copy_depth_stencil_2d.frag',
   'shaders/dxvk_copy_depth_stencil_ms.frag',
+
+  'shaders/dxvk_dummy_frag.frag',
 
   'shaders/dxvk_fullscreen_geom.geom',
   'shaders/dxvk_fullscreen_vert.vert',
@@ -46,11 +48,11 @@ dxvk_shaders = files([
   'shaders/dxvk_resolve_frag_f_amd.frag',
   'shaders/dxvk_resolve_frag_i.frag',
   'shaders/dxvk_resolve_frag_u.frag',
-  
+
   'shaders/dxvk_unpack_d24s8_as_d32s8.comp',
   'shaders/dxvk_unpack_d24s8.comp',
   'shaders/dxvk_unpack_d32s8.comp',
-  
+
   'hud/shaders/hud_graph_frag.frag',
   'hud/shaders/hud_graph_vert.vert',
 
@@ -58,7 +60,7 @@ dxvk_shaders = files([
   'hud/shaders/hud_text_vert.vert',
 ])
 
-dxvk_src = files([
+dxvk_src = [
   'dxvk_adapter.cpp',
   'dxvk_barrier.cpp',
   'dxvk_buffer.cpp',
@@ -71,6 +73,7 @@ dxvk_src = files([
   'dxvk_device.cpp',
   'dxvk_device_filter.cpp',
   'dxvk_extensions.cpp',
+  'dxvk_fence.cpp',
   'dxvk_format.cpp',
   'dxvk_framebuffer.cpp',
   'dxvk_gpu_event.cpp',
@@ -86,20 +89,16 @@ dxvk_src = files([
   'dxvk_meta_mipgen.cpp',
   'dxvk_meta_pack.cpp',
   'dxvk_meta_resolve.cpp',
-  'dxvk_openvr.cpp',
-  'dxvk_openxr.cpp',
   'dxvk_options.cpp',
-  'dxvk_pipecache.cpp',
   'dxvk_pipelayout.cpp',
   'dxvk_pipemanager.cpp',
   'dxvk_queue.cpp',
-  'dxvk_renderpass.cpp',
   'dxvk_resource.cpp',
   'dxvk_sampler.cpp',
   'dxvk_shader.cpp',
   'dxvk_shader_key.cpp',
   'dxvk_signal.cpp',
-  'dxvk_spec_const.cpp',
+  'dxvk_sparse.cpp',
   'dxvk_staging.cpp',
   'dxvk_state_cache.cpp',
   'dxvk_stats.cpp',
@@ -107,22 +106,41 @@ dxvk_src = files([
   'dxvk_unbound.cpp',
   'dxvk_util.cpp',
 
-  'platform/dxvk_win32_exts.cpp',
-  
   'hud/dxvk_hud.cpp',
   'hud/dxvk_hud_font.cpp',
   'hud/dxvk_hud_item.cpp',
   'hud/dxvk_hud_renderer.cpp',
-])
+]
 
-thread_dep = dependency('threads')
+if platform == 'windows'
+  dxvk_src += [
+    'dxvk_openvr.cpp',
+    'dxvk_openxr.cpp',
+  ]
+endif
+
+if dxvk_wsi == 'win32'
+  dxvk_src += [
+    'platform/dxvk_win32_exts.cpp'
+  ]
+elif dxvk_wsi == 'sdl2'
+  dxvk_src += [
+    'platform/dxvk_sdl2_exts.cpp'
+  ]
+endif
+
+dxvk_extra_deps = [ dependency('threads') ]
+if platform == 'linux'
+  dxvk_extra_deps += [ cpp.find_library('dl', required: false) ]
+endif
 
 dxvk_lib = static_library('dxvk', dxvk_src, glsl_generator.process(dxvk_shaders), dxvk_version,
-  link_with           : [ util_lib, spirv_lib ],
-  dependencies        : [ thread_dep, vkcommon_dep ] + dxvk_extradep,
+  link_with           : [ util_lib, spirv_lib, wsi_lib ],
+  dependencies        : [ vkcommon_dep ] + dxvk_extra_deps,
   include_directories : [ dxvk_include_path ],
-  override_options    : ['cpp_std='+dxvk_cpp_std])
+)
 
 dxvk_dep = declare_dependency(
   link_with           : [ dxvk_lib ],
-  include_directories : [ dxvk_include_path ])
+  include_directories : [ dxvk_include_path ],
+)

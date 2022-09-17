@@ -1,5 +1,7 @@
 #pragma once
 
+#define D3D11_NO_HELPERS
+
 #include "d3d9_include.h"
 #include "d3d9_caps.h"
 
@@ -9,6 +11,7 @@
 #include "../dxvk/dxvk_device.h"
 
 #include "../util/util_matrix.h"
+#include "../util/util_misc.h"
 
 #include <d3dcommon.h>
 
@@ -92,29 +95,22 @@ namespace dxvk {
           ID3DBlob** ppDisassembly);
 
   HRESULT DecodeMultiSampleType(
-        D3DMULTISAMPLE_TYPE       MultiSample,
-        DWORD                     MultisampleQuality,
-        VkSampleCountFlagBits*    pCount);
+    const Rc<DxvkDevice>&           pDevice,
+          D3DMULTISAMPLE_TYPE       MultiSample,
+          DWORD                     MultisampleQuality,
+          VkSampleCountFlagBits*    pSampleCount);
 
   VkFormat GetPackedDepthStencilFormat(D3D9Format Format);
 
-  VkFormatFeatureFlags GetImageFormatFeatures(DWORD Usage);
+  VkFormatFeatureFlags2 GetImageFormatFeatures(DWORD Usage);
 
   VkImageUsageFlags GetImageUsageFlags(DWORD Usage);
-
-  inline void DecodeD3DCOLOR(D3DCOLOR color, float* rgba) {
-    // Encoded in D3DCOLOR as argb
-    rgba[3] = (float)((color & 0xff000000) >> 24) / 255.0f;
-    rgba[0] = (float)((color & 0x00ff0000) >> 16) / 255.0f;
-    rgba[1] = (float)((color & 0x0000ff00) >> 8)  / 255.0f;
-    rgba[2] = (float)((color & 0x000000ff))       / 255.0f;
-  }
 
   inline VkFormat PickSRGB(VkFormat format, VkFormat srgbFormat, bool srgb) {
     return srgb ? srgbFormat : format;
   }
 
-  inline VkShaderStageFlagBits GetShaderStage(DxsoProgramType ProgramType) {
+  constexpr VkShaderStageFlagBits GetShaderStage(DxsoProgramType ProgramType) {
     switch (ProgramType) {
       case DxsoProgramTypes::VertexShader:  return VK_SHADER_STAGE_VERTEX_BIT;
       case DxsoProgramTypes::PixelShader:   return VK_SHADER_STAGE_FRAGMENT_BIT;
@@ -245,7 +241,7 @@ namespace dxvk {
   }
 
   inline D3DRENDERSTATETYPE ColorWriteIndex(uint32_t i) {
-    return D3DRENDERSTATETYPE(i ? D3DRS_COLORWRITEENABLE1 + i - 1 : D3DRS_COLORWRITEENABLE);
+    return D3DRENDERSTATETYPE(i ? D3DRENDERSTATETYPE(D3DRS_COLORWRITEENABLE1 + i - 1) : D3DRS_COLORWRITEENABLE);
   }
 
   inline bool AreFormatsSimilar(D3D9Format srcFormat, D3D9Format dstFormat) {

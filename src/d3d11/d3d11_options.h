@@ -9,7 +9,7 @@
 #include "d3d11_include.h"
 
 namespace dxvk {
-  
+
   struct D3D11Options {
     D3D11Options(const Config& config, const Rc<DxvkDevice>& device);
 
@@ -24,23 +24,18 @@ namespace dxvk {
     /// outputs with zero
     bool enableRtOutputNanFixup;
 
-    /// Enables out-of-bounds access check for constant
-    /// buffers. Workaround for a few broken games that
-    /// access random data inside their shaders.
-    bool constantBufferRangeCheck;
-
     /// Zero-initialize workgroup memory
     ///
     /// Workargound for games that don't initialize
     /// TGSM in compute shaders before reading it.
     bool zeroInitWorkgroupMemory;
 
-    /// Force thread-group shared memory barriers
+    /// Force thread-group shared memory accesses to be volatile
     ///
     /// Workaround for compute shaders that read and
     /// write from the same shared memory location
     /// without explicit synchronization.
-    bool forceTgsmBarriers;
+    bool forceVolatileTgsmAccess;
 
     /// Use relaxed memory barriers
     ///
@@ -66,7 +61,12 @@ namespace dxvk {
     /// Enforces anisotropic filtering with the
     /// given anisotropy value for all samplers.
     int32_t samplerAnisotropy;
-    
+
+    /// Mipmap LOD bias
+    ///
+    /// Enforces the given LOD bias for all samplers.
+    float samplerLodBias;
+
     /// Declare vertex positions in shaders as invariant
     bool invariantPosition;
 
@@ -107,9 +107,15 @@ namespace dxvk {
     /// performs the required shader and resolve fixups.
     bool disableMsaa;
 
-    /// Apitrace mode: Maps all buffers in cached memory.
-    /// Enabled automatically if dxgitrace.dll is attached.
-    bool apitraceMode;
+    /// Dynamic resources with the given bind flags will be allocated
+    /// in cached system memory. Enabled automatically when recording
+    /// an api trace.
+    uint32_t cachedDynamicResources;
+
+    /// Always lock immediate context on every API call. May be
+    /// useful for debugging purposes or when applications have
+    /// race conditions.
+    bool enableContextLock;
   };
   
 }

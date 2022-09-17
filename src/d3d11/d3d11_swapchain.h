@@ -98,7 +98,7 @@ namespace dxvk {
 
     Rc<hud::Hud>              m_hud;
 
-    D3D11Texture2D*           m_backBuffer = nullptr;
+    Com<D3D11Texture2D, false> m_backBuffer;
     DxvkSubmitStatus          m_presentStatus;
 
     std::vector<Rc<DxvkImageView>> m_imageViews;
@@ -108,6 +108,8 @@ namespace dxvk {
     uint32_t                m_frameLatencyCap = 0;
     HANDLE                  m_frameLatencyEvent = nullptr;
     Rc<sync::CallbackFence> m_frameLatencySignal;
+
+    HANDLE                  m_processHandle = nullptr;
 
     bool                    m_dirty = true;
     bool                    m_vsync = true;
