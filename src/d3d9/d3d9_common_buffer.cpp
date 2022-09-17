@@ -134,4 +134,30 @@ namespace dxvk {
     return m_parent->GetDXVKDevice()->createBuffer(info, memoryFlags);
   }
 
-}
+  bool D3D9CommonBuffer::AllocData()
+  {
+      // TODO_MMF:
+  /*if (m_mapMode != D3D9_COMMON_TEXTURE_MAP_MODE_UNMAPPABLE)
+    return CreateBufferSubresource(Subresource);*/
+
+    D3D9Memory& memory = m_data;
+    if (likely(memory))
+      return false;
+
+    memory = m_parent->GetAllocator()->Alloc(m_desc.Size);
+    memory.Map();
+    return true;
+  }
+
+  void* D3D9CommonBuffer::GetData()
+  {
+    // TODO_MMF:
+    /*if (m_mapMode != D3D9_COMMON_TEXTURE_MAP_MODE_UNMAPPABLE)
+      return m_mappedSlice.mapPtr;*/
+
+    D3D9Memory& memory = m_data;
+    memory.Map();
+    return memory.Ptr();
+  }
+
+  }

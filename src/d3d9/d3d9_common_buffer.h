@@ -103,6 +103,10 @@ namespace dxvk {
       return mm;
     }
 
+    bool AllocData();
+    void* GetData(); 
+    void UnmapData() { m_data.Unmap(); }
+
     /**
     * \brief Get the mapping mode of the buffer, (ie. direct mapping or backed)
     */
@@ -251,6 +255,7 @@ namespace dxvk {
 
     uint64_t                    m_seq = 0ull;
 
+    D3D9Memory                  m_data;
   };
 
 }
