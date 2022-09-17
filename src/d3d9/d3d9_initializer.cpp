@@ -46,11 +46,11 @@ namespace dxvk {
     if (pTexture->GetMapMode() == D3D9_COMMON_TEXTURE_MAP_MODE_NONE)
       return;
 
-    (pTexture->GetMapMode() == D3D9_COMMON_TEXTURE_MAP_MODE_BACKED
+/*    (pTexture->GetMapMode() == D3D9_COMMON_TEXTURE_MAP_MODE_BACKED
       || pTexture->GetMapMode() == D3D9_COMMON_TEXTURE_MAP_MODE_UNMAPPABLE)
       ? InitDeviceLocalTexture(pTexture)
-      : InitHostVisibleTexture(pTexture, pInitialData);
-/* TODO_MERGE: this needs testing =======
+      : InitHostVisibleTexture(pTexture, pInitialData);*/
+// TODO_MERGE: this needs testing =======
     if (pTexture->GetImage() != nullptr)
       InitDeviceLocalTexture(pTexture);
 
