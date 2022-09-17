@@ -136,7 +136,6 @@ namespace dxvk {
 #else
       ~D3D9MemoryAllocator();
 #endif
-      ~D3D9MemoryAllocator() = default;
       D3D9Memory Alloc(uint32_t Size);
       void FreeChunk(D3D9MemoryChunk* Chunk);
       void NotifyMapped(uint32_t Size);

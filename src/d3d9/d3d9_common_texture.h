@@ -396,30 +396,7 @@ namespace dxvk {
     const Rc<DxvkImageView>& GetSampleView(bool srgb) const {
       return m_sampleView.Pick(srgb && IsSrgbCompatible());
     }
-#ifdef UNMAP_V1
-    VkImageLayout DetermineRenderTargetLayout() const {
-      return m_image != nullptr &&
-             m_image->info().tiling == VK_IMAGE_TILING_OPTIMAL &&
-            !m_hazardous
-        ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-        : VK_IMAGE_LAYOUT_GENERAL;
-    }
 
-    VkImageLayout DetermineDepthStencilLayout(bool write, bool hazardous) const {
-      VkImageLayout layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-      if (unlikely(hazardous)) {
-        layout = write
-          ? VK_IMAGE_LAYOUT_GENERAL
-          : VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL;
-      }
-
-      if (unlikely(m_image->info().tiling != VK_IMAGE_TILING_OPTIMAL))
-        layout = VK_IMAGE_LAYOUT_GENERAL;
-
-      return layout;
-    }
-#else
     VkImageLayout DetermineRenderTargetLayout(VkImageLayout hazardLayout) const
     {
       if (unlikely(m_hazardous))
@@ -447,7 +424,7 @@ namespace dxvk {
         layout = VK_IMAGE_LAYOUT_GENERAL;
       return layout;
     }
-#endif 
+
     Rc<DxvkImageView> CreateView(
             UINT                   Layer,
             UINT                   Lod,

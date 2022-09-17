@@ -7443,7 +7443,7 @@ namespace dxvk {
     if (pTexture->GetMapMode() == D3D9_COMMON_TEXTURE_MAP_MODE_UNMAPPABLE) {
       m_mappedTextures.insert(pTexture);
       pTexture->SetMappingFrame(m_frameCounter);
-
+#endif
 #else
 #ifdef D3D9_ALLOW_UNMAPPING
     if (likely(pTexture->GetMapMode() == D3D9_COMMON_TEXTURE_MAP_MODE_UNMAPPABLE)) {
@@ -7462,12 +7462,12 @@ namespace dxvk {
       return;
 
     D3D9DeviceLock lock = LockDevice();
->>>>>>>>>>>>>>>>>>>>>
-      //<<<<<<< HEAD
+#ifdef UNMAP_V1
     pTexture->SetMappingFrame(m_frameCounter);
-/*TODO_MERGE:=======
+#else
     m_mappedTextures.touch(pTexture);
->>>>>>> master*/
+#endif
+
 #endif
   }
 
@@ -7475,12 +7475,16 @@ namespace dxvk {
 #ifdef D3D9_ALLOW_UNMAPPING
     if (pTexture->GetMapMode() != D3D9_COMMON_TEXTURE_MAP_MODE_UNMAPPABLE)
       return;
-
     D3D9DeviceLock lock = LockDevice();
+#ifdef UNMAP_V1
     m_mappedTextures.erase(pTexture);
+#else
+    m_mappedTextures.remove(pTexture);
+#endif
+
 #endif
   }
-
+#ifdef UNMAP_V1
   void* D3D9DeviceEx::MapBuffer(D3D9CommonBuffer* pBuffer) {
     // Will only be called inside the device lock
     void* ptr = pBuffer->GetLockingData();
@@ -7579,12 +7583,8 @@ namespace dxvk {
       iter = m_mappedBuffers.erase(iter);
     }
 #endif
-
-/* TODO_MERGE: =======
-    m_mappedTextures.remove(pTexture);
-#endif
-  }
-
+}
+#else
   void D3D9DeviceEx::UnmapTextures() {
     // Will only be called inside the device lock
 
@@ -7607,7 +7607,7 @@ namespace dxvk {
     }
 #endif
   }
-  */
+#endif*/
   ////////////////////////////////////
   // D3D9 Device Specialization State
   ////////////////////////////////////
