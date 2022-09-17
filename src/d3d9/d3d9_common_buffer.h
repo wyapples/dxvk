@@ -5,6 +5,7 @@
 
 #include "d3d9_device_child.h"
 #include "d3d9_format.h"
+#include "d3d9_mem.h"
 
 namespace dxvk {
 
@@ -13,7 +14,8 @@ namespace dxvk {
    */
   enum D3D9_COMMON_BUFFER_MAP_MODE {
     D3D9_COMMON_BUFFER_MAP_MODE_BUFFER,
-    D3D9_COMMON_BUFFER_MAP_MODE_DIRECT
+    D3D9_COMMON_BUFFER_MAP_MODE_DIRECT,
+    D3D9_COMMON_BUFFER_MAP_MODE_UNMAPPABLE
   };
 
   /**
@@ -90,9 +92,15 @@ namespace dxvk {
     * \brief Determine the mapping mode of the buffer, (ie. direct mapping or backed)
     */
     inline D3D9_COMMON_BUFFER_MAP_MODE DetermineMapMode(const D3D9Options* options) const {
-      return (m_desc.Pool == D3DPOOL_DEFAULT && (m_desc.Usage & (D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY)) && options->allowDirectBufferMapping)
+      auto mm = (m_desc.Pool == D3DPOOL_DEFAULT && (m_desc.Usage & (D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY)) && options->allowDirectBufferMapping)
         ? D3D9_COMMON_BUFFER_MAP_MODE_DIRECT
         : D3D9_COMMON_BUFFER_MAP_MODE_BUFFER;
+
+      #ifdef D3D9_ALLOW_UNMAPPING
+        if (mm == D3D9_COMMON_BUFFER_MAP_MODE_BUFFER)
+          mm = D3D9_COMMON_BUFFER_MAP_MODE_UNMAPPABLE;
+      #endif
+      return mm;
     }
 
     /**
