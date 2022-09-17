@@ -97,8 +97,8 @@ namespace dxvk {
         : D3D9_COMMON_BUFFER_MAP_MODE_BUFFER;
 
       #ifdef D3D9_ALLOW_UNMAPPING
-        if (mm == D3D9_COMMON_BUFFER_MAP_MODE_BUFFER)
-          mm = D3D9_COMMON_BUFFER_MAP_MODE_UNMAPPABLE;
+        //if (mm == D3D9_COMMON_BUFFER_MAP_MODE_BUFFER)
+          //mm = D3D9_COMMON_BUFFER_MAP_MODE_UNMAPPABLE;
       #endif
       return mm;
     }
