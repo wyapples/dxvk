@@ -660,7 +660,7 @@ namespace dxvk {
     // D3D9Initializer will handle clearing the data
     const uint32_t count = CountSubresources();
     for (uint32_t i = 0; i < count; i++) {
-      m_data[i] = m_device->GetAllocator()->Alloc(GetMipSize(i));
+      m_data[i] = m_device->GetTextureAllocator()->Alloc(GetMipSize(i));
     }
   }
 

@@ -295,9 +295,10 @@ namespace dxvk {
     else
       msInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
-    if (fs && fs->flags().test(DxvkShaderFlag::HasSampleRateShading)) {
+    // GTR2_SPECIFIC: note that there are more HasSampleRateShading uses, might be worth investigating them all.
+    if (fs && (likely(device->config().forceSampleRateShading) || fs->flags().test(DxvkShaderFlag::HasSampleRateShading))) {
       msInfo.sampleShadingEnable  = VK_TRUE;
-      msInfo.minSampleShading     = 1.0f;
+      msInfo.minSampleShading     = device->config().forcedSampleRateShadingFactor;
     }
 
     msSampleMask                  = state.ms.sampleMask() & ((1u << msInfo.rasterizationSamples) - 1);
@@ -876,10 +877,6 @@ namespace dxvk {
     
     if (m_barrier.access & VK_ACCESS_SHADER_WRITE_BIT)
       m_flags.set(DxvkGraphicsPipelineFlag::HasStorageDescriptors);
-
-    // TODO_MERGE:
-    /*m_common.msSampleShadingEnable = m_shaders.fs != nullptr && (m_shaders.fs->flags().test(DxvkShaderFlag::HasSampleRateShading) || pipeMgr->m_device->config().forceSampleRateShading);
-    m_common.msSampleShadingFactor = pipeMgr->m_device->config().forceSampleRateShading ? pipeMgr->m_device->config().forcedSampleRateShadingFactor : 1.0f;*/
   }
   
   
