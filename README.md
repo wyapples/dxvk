@@ -1,11 +1,12 @@
 # About this fork:
 
-This fork contains code to:
-* allow DX9->Vulkan OpenVR (Based on Joshie Ashton's work).
-* option to allow forcing SGSSAA-like AA.  It's brute force and I suspect can be done much smarter, by appliying sample shading only to some pipelines, I am not yet sure how - suggestions welcome!
-* option to allow focing 32bit float depth buffer.
+This fork contains the following changes:
+* GTR2 specific tweaks for higher framerate.  Might be helpful for other gMotor based/derived DX9 games, but GTR2 is the sole focus of this fork.  Differences vs main repo are marked with GTR2_SPECIFIC symbol.
+* allow DX9->Vulkan OpenVR (Based on Joshua Ashton's work).
+* option to force SGSSAA-like AA.  It's brute force and I suspect can be done much smarter, by appliying sample shading only to some pipelines, I am not yet sure how - suggestions welcome!
+* option to force 32bit float depth buffer.
 
-I am not submitting my stuff to the main repo because I am not exactly a graphics guru and I doubt anyone needs my hacks.  That said, if this is useful to anyone, I would greatly appreciate hints and suggestions, especially on how to minimize GPU idle time in VR and applying sample shading AA smarter.
+I am not submitting my stuff to the main repo because I am not exactly a graphics guru and I doubt anyone needs my hacks there (at least no one expressed interest).  That said, if this is useful to anyone, I would greatly appreciate hints and suggestions, especially on how to minimize GPU idle time in VR and applying sample shading AA smarter.  Also, any ideas for further DX9 gMotor specific tweaks are welcome.
 
 Main branch is: vr-dx9-rel
 
@@ -44,10 +45,17 @@ export WINEPREFIX=/path/to/.wine-prefix
 
 ## Build instructions
 
+In order to pull in all submodules that are needed for building, clone the repository using the following command:
+```
+git clone --recursive https://github.com/doitsujin/dxvk.git
+```
+
+
+
 ### Requirements:
 - [wine 3.10](https://www.winehq.org/) or newer
-- [Meson](https://mesonbuild.com/) build system (at least version 0.46)
-- [Mingw-w64](https://www.mingw-w64.org) compiler and headers (at least version 8.0)
+- [Meson](https://mesonbuild.com/) build system (at least version 0.49)
+- [Mingw-w64](https://www.mingw-w64.org) compiler and headers (at least version 10.0)
 - [glslang](https://github.com/KhronosGroup/glslang) compiler
 
 ### Building DLLs
@@ -92,10 +100,12 @@ The `DXVK_HUD` environment variable controls a HUD which can display the framera
 - `submissions`: Shows the number of command buffers submitted per frame.
 - `drawcalls`: Shows the number of draw calls and render passes per frame.
 - `pipelines`: Shows the total number of graphics and compute pipelines.
+- `descriptors`: Shows the number of descriptor pools and descriptor sets.
 - `memory`: Shows the amount of device memory allocated and used.
 - `gpuload`: Shows estimated GPU load. May be inaccurate.
 - `version`: Shows DXVK version.
 - `api`: Shows the D3D feature level used by the application.
+- `cs`: Shows worker thread statistics.
 - `compiler`: Shows shader compiler activity
 - `samplers`: Shows the current number of sampler pairs used *[D3D9 Only]*
 - `scale=x`: Scales the HUD by a factor of `x` (e.g. `1.5`)
@@ -115,7 +125,9 @@ Some applications do not provide a method to select a different GPU. In that cas
 DXVK caches pipeline state by default, so that shaders can be recompiled ahead of time on subsequent runs of an application, even if the driver's own shader cache got invalidated in the meantime. This cache is enabled by default, and generally reduces stuttering.
 
 The following environment variables can be used to control the cache:
-- `DXVK_STATE_CACHE=0` Disables the state cache.
+- `DXVK_STATE_CACHE`: Controls the state cache. The following values are supported:
+  - `disable`: Disables the cache entirely.
+  - `reset`: Clears the cache file.
 - `DXVK_STATE_CACHE_PATH=/some/directory` Specifies a directory where to put the cache files. Defaults to the current working directory of the application.
 
 ### Debugging
@@ -124,7 +136,7 @@ The following environment variables can be used for **debugging** purposes.
 - `DXVK_LOG_LEVEL=none|error|warn|info|debug` Controls message logging.
 - `DXVK_LOG_PATH=/some/directory` Changes path where log files are stored. Set to `none` to disable log file creation entirely, without disabling logging.
 - `DXVK_CONFIG_FILE=/xxx/dxvk.conf` Sets path to the configuration file.
-- `DXVK_PERF_EVENTS=1` Enables use of the VK_EXT_debug_utils extension for translating performance event markers.
+- `DXVK_DEBUG=markers|validation` Enables use of the `VK_EXT_debug_utils` extension for translating performance event markers, or to enable Vulkan validation, respecticely.
 
 ## Troubleshooting
 DXVK requires threading support from your mingw-w64 build environment. If you

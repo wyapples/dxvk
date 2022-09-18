@@ -3,8 +3,6 @@
 #include "../util/config/config.h"
 #include "../dxvk/dxvk_device.h"
 
-#include "d3d9_include.h"
-
 namespace dxvk {
 
   enum class D3D9FloatEmulation {
@@ -38,9 +36,6 @@ namespace dxvk {
     /// Set the max shader model the device can support in the caps.
     int32_t shaderModel;
 
-    /// Whether or not managed resources should stay in memory until unlock, or until manually evicted.
-    bool evictManagedOnUnlock;
-
     /// Whether or not to set the process as DPI aware in Windows when the API interface is created.
     bool dpiAware;
 
@@ -71,10 +66,6 @@ namespace dxvk {
 
     /// Defer surface creation
     bool deferSurfaceCreation;
-
-    /// Whether to transition to general
-    /// for rendering hazards
-    bool generalHazards;
 
     /// Anisotropic filter override
     ///
@@ -129,9 +120,6 @@ namespace dxvk {
     /// Forces an MSAA level on the swapchain
     int32_t forceSwapchainMSAA;
 
-    /// Allow D3DLOCK_DONOTWAIT
-    bool allowDoNotWait;
-
     /// Allow D3DLOCK_DISCARD
     bool allowDiscard;
 
@@ -147,10 +135,6 @@ namespace dxvk {
     /// Tearing mode if vsync is enabled
     Tristate tearFree;
 
-    /// Workaround for games using alpha test == 1.0, etc due to wonky interpolation or
-    /// misc. imprecision on some vendors
-    bool alphaTestWiggleRoom;
-
     /// Apitrace mode: Maps all buffers in cached memory.
     bool apitraceMode;
 
@@ -162,6 +146,12 @@ namespace dxvk {
 
     /// Disable direct buffer mapping
     bool allowDirectBufferMapping;
+
+    /// Don't use non seamless cube maps
+    bool seamlessCubes;
+
+    /// How much virtual memory will be used for textures (in MB).
+    int32_t textureMemory;
   };
 
 }

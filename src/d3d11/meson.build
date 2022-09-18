@@ -37,6 +37,8 @@ d3d11_src = [
   'd3d11_depth_stencil.cpp',
   'd3d11_device.cpp',
   'd3d11_enums.cpp',
+  'd3d11_features.cpp',
+  'd3d11_fence.cpp',
   'd3d11_gdi.cpp',
   'd3d11_initializer.cpp',
   'd3d11_input_layout.cpp',
@@ -68,12 +70,13 @@ d3d11_shaders = files([
 d3d11_dll = shared_library('d3d11'+dll_ext, dxgi_common_src + d3d11_src + d3d10_src,
     glsl_generator.process(d3d11_shaders), d3d11_res,
   name_prefix         : '',
-  dependencies        : [ lib_dxgi, dxbc_dep, dxvk_dep ],
+  dependencies        : [ dxgi_dep, dxbc_dep, dxvk_dep ],
   include_directories : dxvk_include_path,
   install             : true,
   vs_module_defs      : 'd3d11'+def_spec_ext,
-  override_options    : ['cpp_std='+dxvk_cpp_std])
+)
 
 d3d11_dep = declare_dependency(
   link_with           : [ d3d11_dll ],
-  include_directories : [ dxvk_include_path ])
+  include_directories : [ dxvk_include_path ],
+)
