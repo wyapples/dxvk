@@ -134,7 +134,6 @@ namespace dxvk::hud {
 
     position.y += 8.0f;
 
-
     return position;
   }
 

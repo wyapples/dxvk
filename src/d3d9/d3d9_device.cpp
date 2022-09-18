@@ -7418,7 +7418,6 @@ namespace dxvk {
     if (pBuffer->GetMapMode() ==
         D3D9_COMMON_BUFFER_MAP_MODE_UNMAPPABLE) {
       m_mappedBuffers.insert(pBuffer);
-      //pBuffer->SetMappingFrame(m_frameCounter);
     }
 #endif
 
@@ -7433,7 +7432,6 @@ namespace dxvk {
       return;
 
     D3D9DeviceLock lock = LockDevice();
-    //pBuffer->SetMappingFrame(m_frameCounter);
     m_mappedBuffers.touch(pBuffer);
 #endif
   }
@@ -7446,49 +7444,6 @@ namespace dxvk {
 
     D3D9DeviceLock lock = LockDevice();
     m_mappedBuffers.remove(pBuffer);
-    /* TODO_MERGE: */
-    /* TODO_MMF:
-  Crash on shutdown, no idea why.  So add a workaround.
-        d3d9_dxvk.dll!std::_Hash<std::_Uset_traits<dxvk::D3D9CommonBuffer
-  *,std::_Uhash_compare<dxvk::D3D9CommonBuffer
-  *,std::hash<dxvk::D3D9CommonBuffer *>,std::equal_to<dxvk::D3D9CommonBuffer
-  *>>,std::allocator<dxvk::D3D9CommonBuffer
-  *>,0>>::_Find_last<dxvk::D3D9CommonBuffer *>(dxvk::D3D9CommonBuffer * const &
-  _Keyval, const unsigned int _Hashval) Line 1655	C++
-        d3d9_dxvk.dll!std::_Hash<std::_Uset_traits<dxvk::D3D9CommonBuffer
-  *,std::_Uhash_compare<dxvk::D3D9CommonBuffer
-  *,std::hash<dxvk::D3D9CommonBuffer *>,std::equal_to<dxvk::D3D9CommonBuffer
-  *>>,std::allocator<dxvk::D3D9CommonBuffer *>,0>>::erase(dxvk::D3D9CommonBuffer
-  * const & _Keyval) Line 1240	C++
-        d3d9_dxvk.dll!dxvk::D3D9DeviceEx::RemoveMappedBuffer(dxvk::D3D9CommonBuffer
-  * pBuffer) Line 7476	C++
-        d3d9_dxvk.dll!dxvk::D3D9CommonBuffer::~D3D9CommonBuffer() Line 31
-  C++
-        d3d9_dxvk.dll!dxvk::D3D9Buffer<IDirect3DVertexBuffer9>::~D3D9Buffer<IDirect3DVertexBuffer9>()
-  C++ d3d9_dxvk.dll!dxvk::D3D9VertexBuffer::~D3D9VertexBuffer()	C++
-        d3d9_dxvk.dll!dxvk::D3D9VertexBuffer::`scalar deleting
-  destructor'(unsigned int)	C++
-        d3d9_dxvk.dll!dxvk::ComObject<IDirect3DVertexBuffer9>::ReleasePrivate()
-  Line 67	C++
-        d3d9_dxvk.dll!dxvk::ComRef_<dxvk::D3D9VertexBuffer,0>::decRef(dxvk::D3D9VertexBuffer
-  * ptr) Line 38	C++
-        d3d9_dxvk.dll!dxvk::Com<dxvk::D3D9VertexBuffer,0>::decRef() Line 141
-  C++
-        d3d9_dxvk.dll!dxvk::Com<dxvk::D3D9VertexBuffer,0>::~Com<dxvk::D3D9VertexBuffer,0>()
-  Line 99	C++ d3d9_dxvk.dll!dxvk::D3D9VBO::~D3D9VBO()	C++
-        d3d9_dxvk.dll!`eh vector destructor iterator'(void * ptr, unsigned int
-  size, unsigned int count, void(*)(void *) destructor)	C++
-        d3d9_dxvk.dll!std::array<dxvk::D3D9VBO,16>::~array<dxvk::D3D9VBO,16>()
-  C++ d3d9_dxvk.dll!dxvk::D3D9CapturableState::~D3D9CapturableState() Line 18
-  C++ d3d9_dxvk.dll!dxvk::Direct3DState9::~Direct3DState9()	C++
-        d3d9_dxvk.dll!dxvk::D3D9DeviceEx::~D3D9DeviceEx() Line 159	C++
-    */
-
-    /*if (!g_shuttingDown) {
-      D3D9DeviceLock lock = LockDevice();
-      m_mappedBuffers.erase(pBuffer);
-    }*/
-
 #endif
   }
 
