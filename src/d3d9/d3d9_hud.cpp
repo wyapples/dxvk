@@ -64,14 +64,14 @@ namespace dxvk::hud {
     if (elapsed.count() < UpdateInterval)
       return;
 
-    m_texturesAllocatedString = str::format(m_maxTextureAllocated >> 20, " MB (Used: ", m_maxTextureUsed >> 20, " MB)");
-    m_texturesMappedString = str::format(m_maxTextureMapped >> 20, " MB"/* (Peak: ", peakMapped >> 20, " MB)"*/);
+    m_texturesAllocatedString = str::format(std::setfill(' '), std::setw(5), m_maxTextureAllocated >> 20, " MB     ", std::setw(5), m_maxTextureUsed >> 20, " MB used");
+    m_texturesMappedString = str::format(std::setfill(' '), std::setw(5), m_maxTextureMapped >> 20, " MB"/* (Peak: ", peakMapped >> 20, " MB)"*/);
     m_maxTextureAllocated = 0;
     m_maxTextureUsed = 0;
     m_maxTextureMapped = 0;
 
-    m_buffersAllocatedString = str::format(m_maxBufferAllocated >> 20, " MB (Used: ", m_maxBufferUsed >> 20, " MB)");
-    m_buffersMappedString = str::format(m_maxBufferMapped >> 20, " MB"/* (Peak: ", peakMapped >> 20, " MB)"*/);
+    m_buffersAllocatedString = str::format(std::setfill(' '), std::setw(5), m_maxBufferAllocated >> 20, " MB     ", std::setw(5), m_maxBufferUsed >> 20, " MB used");
+    m_buffersMappedString = str::format(std::setfill(' '), std::setw(5), m_maxBufferMapped >> 20, " MB"/* (Peak: ", peakMapped >> 20, " MB)"*/);
     m_maxBufferAllocated = 0;
     m_maxBufferUsed = 0;
     m_maxBufferMapped = 0;
@@ -91,7 +91,7 @@ namespace dxvk::hud {
                       "Mappable Textures:");
 
     renderer.drawText(16.0f,
-                      { position.x + 240.0f, position.y },
+                      { position.x + 220.0f, position.y },
                       { 1.0f, 1.0f, 1.0f, 1.0f },
                       m_texturesAllocatedString);
 
@@ -103,7 +103,7 @@ namespace dxvk::hud {
                       "Mapped Textures:");
 
     renderer.drawText(16.0f,
-                      { position.x + 240.0f, position.y },
+                      { position.x + 220.0f, position.y },
                       { 1.0f, 1.0f, 1.0f, 1.0f },
                       m_texturesMappedString);
 
@@ -116,7 +116,7 @@ namespace dxvk::hud {
                       "Mappable Buffers:");
 
     renderer.drawText(16.0f,
-                      { position.x + 240.0f, position.y },
+                      { position.x + 220.0f, position.y },
                       { 1.0f, 1.0f, 1.0f, 1.0f },
                       m_buffersAllocatedString);
 
@@ -128,7 +128,7 @@ namespace dxvk::hud {
                       "Mapped Buffers:");
 
     renderer.drawText(16.0f,
-                      { position.x + 240.0f, position.y },
+                      { position.x + 220.0f, position.y },
                       { 1.0f, 1.0f, 1.0f, 1.0f },
                       m_buffersMappedString);
 

@@ -7498,10 +7498,10 @@ namespace dxvk {
     // Will only be called inside the device lock
 #ifdef D3D9_ALLOW_UNMAPPING
     uint32_t mappedMemory = m_bufferMemoryAllocator.MappedMemory();
-    if (likely(mappedMemory < uint32_t(m_d3d9Options.textureMemory)))
+    if (likely(mappedMemory < uint32_t(m_d3d9Options.bufferMemory)))
       return;
 
-    uint32_t threshold = (m_d3d9Options.textureMemory / 4) * 3;
+    uint32_t threshold = (m_d3d9Options.bufferMemory / 4) * 3;
 
     auto iter = m_mappedBuffers.leastRecentlyUsedIter();
     while (m_bufferMemoryAllocator.MappedMemory() >= threshold &&

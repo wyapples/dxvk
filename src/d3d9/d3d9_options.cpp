@@ -72,7 +72,8 @@ namespace dxvk {
     this->forceD32FS8DepthStencil       = config.getOption<bool>        ("d3d9.forceD32FS8DepthStencil",       false);
     this->allowDirectBufferMapping      = config.getOption<bool>        ("d3d9.allowDirectBufferMapping",      false);
     this->seamlessCubes                 = config.getOption<bool>        ("d3d9.seamlessCubes",                 false);
-    this->textureMemory                 = config.getOption<int32_t>     ("d3d9.textureMemory",                100) << 20;
+    this->textureMemory                 = config.getOption<int32_t>     ("d3d9.textureMemory",                 100) << 20;
+    this->bufferMemory                  = config.getOption<int32_t>     ("d3d9.bufferMemory",                  100) << 20;
 
     std::string floatEmulation = Config::toLower(config.getOption<std::string>("d3d9.floatEmulation", "auto"));
     if (floatEmulation == "strict") {
