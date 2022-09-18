@@ -153,5 +153,4 @@ namespace dxvk {
     option &= state != Tristate::False;
     option |= state == Tristate::True;
   }
-
 }
