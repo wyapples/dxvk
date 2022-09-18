@@ -46,13 +46,20 @@ namespace dxvk::hud {
     m_maxUsed = std::max(m_maxUsed, allocator->UsedMemory());
     m_maxMapped = std::max(m_maxMapped, allocator->MappedMemory());
 
+    static uint32_t peakMapped = 0u;
+    if (allocator->MappedMemory() > peakMapped)
+      peakMapped = allocator->MappedMemory();
+
+    if ((::GetAsyncKeyState(VK_NUMPAD0) & 1) != 0)
+      peakMapped = 0u;
+
     auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(time - m_lastUpdate);
 
     if (elapsed.count() < UpdateInterval)
       return;
 
     m_allocatedString = str::format(m_maxAllocated >> 20, " MB (Used: ", m_maxUsed >> 20, " MB)");
-    m_mappedString = str::format(m_maxMapped >> 20, " MB");
+    m_mappedString = str::format(m_maxMapped >> 20, " MB (Peak: ", peakMapped >> 20, " MB)");
     m_maxAllocated = 0;
     m_maxUsed = 0;
     m_maxMapped = 0;
