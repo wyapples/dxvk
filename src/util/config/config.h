@@ -137,6 +137,7 @@ namespace dxvk {
             I             begin,
             I             end,
             V&            value);
+
   };
 
 
@@ -153,4 +154,5 @@ namespace dxvk {
     option &= state != Tristate::False;
     option |= state == Tristate::True;
   }
+
 }
