@@ -144,7 +144,7 @@ namespace dxvk {
     if (likely(memory))
       return false;
 
-    memory = m_parent->GetAllocator()->Alloc(m_desc.Size);
+    memory = m_parent->GetBufferAllocator()->Alloc(m_desc.Size);
     memory.Map();
     return true;
   }

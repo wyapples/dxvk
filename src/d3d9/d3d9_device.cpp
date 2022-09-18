@@ -46,7 +46,8 @@ namespace dxvk {
     , m_behaviorFlags   ( BehaviorFlags )
     , m_adapter         ( pAdapter )
     , m_dxvkDevice      ( dxvkDevice )
-    , m_memoryAllocator ( )
+    , m_textureMemoryAllocator ( )
+    , m_bufferMemoryAllocator ( )
     , m_shaderAllocator ( )
     , m_shaderModules   ( new D3D9ShaderModuleSet )
     , m_stagingBuffer   ( dxvkDevice, StagingBufferSize )
@@ -7389,14 +7390,14 @@ namespace dxvk {
     // Will only be called inside the device lock
 
 #ifdef D3D9_ALLOW_UNMAPPING
-    uint32_t mappedMemory = m_memoryAllocator.MappedMemory();
+    uint32_t mappedMemory = m_textureMemoryAllocator.MappedMemory();
     if (likely(mappedMemory < uint32_t(m_d3d9Options.textureMemory)))
       return;
 
     uint32_t threshold = (m_d3d9Options.textureMemory / 4) * 3;
 
     auto iter = m_mappedTextures.leastRecentlyUsedIter();
-    while (m_memoryAllocator.MappedMemory() >= threshold && iter != m_mappedTextures.leastRecentlyUsedEndIter()) {
+    while (m_textureMemoryAllocator.MappedMemory() >= threshold && iter != m_mappedTextures.leastRecentlyUsedEndIter()) {
       if (unlikely((*iter)->IsAnySubresourceLocked() != 0)) {
         iter++;
         continue;
@@ -7496,14 +7497,14 @@ namespace dxvk {
   {
     // Will only be called inside the device lock
 #ifdef D3D9_ALLOW_UNMAPPING
-    uint32_t mappedMemory = m_memoryAllocator.MappedMemory();
+    uint32_t mappedMemory = m_bufferMemoryAllocator.MappedMemory();
     if (likely(mappedMemory < uint32_t(m_d3d9Options.textureMemory)))
       return;
 
     uint32_t threshold = (m_d3d9Options.textureMemory / 4) * 3;
 
     auto iter = m_mappedBuffers.leastRecentlyUsedIter();
-    while (m_memoryAllocator.MappedMemory() >= threshold &&
+    while (m_bufferMemoryAllocator.MappedMemory() >= threshold &&
            iter != m_mappedBuffers.leastRecentlyUsedEndIter()) {
       if (unlikely((*iter)->GetLockCount() != 0)) {
         iter++;

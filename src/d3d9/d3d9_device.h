@@ -940,8 +940,12 @@ namespace dxvk {
       return m_samplerCount.load();
     }
 
-    D3D9MemoryAllocator* GetAllocator() {
-      return &m_memoryAllocator;
+    D3D9MemoryAllocator* GetTextureAllocator() {
+      return &m_textureMemoryAllocator;
+    }
+
+    D3D9MemoryAllocator* GetBufferAllocator() {
+      return &m_bufferMemoryAllocator;
     }
 
     void* MapTexture(D3D9CommonTexture* pTexture, UINT Subresource);
@@ -1177,7 +1181,8 @@ namespace dxvk {
     D3D9Adapter*                    m_adapter;
     Rc<DxvkDevice>                  m_dxvkDevice;
 
-    D3D9MemoryAllocator             m_memoryAllocator;
+    D3D9MemoryAllocator             m_textureMemoryAllocator;
+    D3D9MemoryAllocator             m_bufferMemoryAllocator;
 
     // Second memory allocator used for D3D9 shader bytecode.
     // Most games never access the stored bytecode, so putting that
