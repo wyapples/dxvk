@@ -7440,7 +7440,9 @@ namespace dxvk {
       return;
 
     D3D9DeviceLock lock = LockDevice();
-    m_mappedBuffers.touch(pBuffer);
+    _ASSERT(false);
+    // TODO_MMF: dead code
+    //m_mappedBuffers.touch(pBuffer);
 #endif
   }
 
@@ -7452,7 +7454,7 @@ namespace dxvk {
     
     if (!g_shuttingDown) {
       D3D9DeviceLock lock = LockDevice();
-      m_mappedBuffers.remove(pBuffer);
+      m_mappedBuffers.erase(pBuffer);
     }
 #endif
   }
@@ -7468,17 +7470,15 @@ namespace dxvk {
 
     uint32_t threshold = (m_d3d9Options.bufferMemory / 4) * 3;
 
-    auto iter = m_mappedBuffers.leastRecentlyUsedIter();
-    while (m_bufferMemoryAllocator.MappedMemory() >= threshold &&
-           iter != m_mappedBuffers.leastRecentlyUsedEndIter()) {
+    auto iter = m_mappedBuffers.begin();
+    while (m_bufferMemoryAllocator.MappedMemory() >= threshold && iter != m_mappedBuffers.end()) {
       if (unlikely((*iter)->GetLockCount() != 0)) {
         iter++;
         continue;
       }
 
       (*iter)->UnmapData();
-
-      iter = m_mappedBuffers.remove(iter);
+      iter = m_mappedBuffers.erase(iter);
     }
 #endif
   }

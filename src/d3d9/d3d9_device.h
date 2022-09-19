@@ -954,8 +954,8 @@ namespace dxvk {
 
     void* MapBuffer(D3D9CommonBuffer* pBuffer);
     // VL: unlike textures, we only consider buffer being used if it was
-    // actually mapped.  Currently that's when buffer is locked.  So, this is
-    // dead code.
+    // actually mapped.  Currently that's when buffer is locked.  So, Touch is
+    // a dead code.
     void TouchMappedBuffer(D3D9CommonBuffer* pBuffer);
     void RemoveMappedBuffer(D3D9CommonBuffer* pBuffer);
 
@@ -1328,8 +1328,9 @@ namespace dxvk {
     Direct3DState9                  m_state;
 
 #ifdef D3D9_ALLOW_UNMAPPING
-    lru_list<D3D9CommonTexture*>    m_mappedTextures;
-    lru_list<D3D9CommonBuffer*>    m_mappedBuffers;
+    lru_list<D3D9CommonTexture*>          m_mappedTextures;
+    // Only lock count is considered for buffers.
+    std::unordered_set<D3D9CommonBuffer*> m_mappedBuffers;
 #endif
   };
 
