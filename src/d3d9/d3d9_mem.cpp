@@ -230,19 +230,13 @@ namespace dxvk {
 
 
   D3D9Memory::D3D9Memory(D3D9MemoryChunk* Chunk, size_t Offset, size_t Size)
-    : m_chunk(Chunk), m_offset(Offset), m_size(Size) 
-  {
-  
-  }
+    : m_chunk(Chunk), m_offset(Offset), m_size(Size) {}
 
   D3D9Memory::D3D9Memory(D3D9Memory&& other)
     : m_chunk(std::exchange(other.m_chunk, nullptr)),
       m_ptr(std::exchange(other.m_ptr, nullptr)),
       m_offset(std::exchange(other.m_offset, 0)),
-      m_size(std::exchange(other.m_size, 0)) 
-  {
-  
-  }
+      m_size(std::exchange(other.m_size, 0)) {}
 
   D3D9Memory::~D3D9Memory() {
     this->Free();
@@ -285,9 +279,6 @@ namespace dxvk {
 
   void D3D9Memory::Unmap() {
     if (unlikely(m_ptr == nullptr))
-      return;
-    
-    if (unlikely(m_chunk == nullptr))
       return;
 
     m_chunk->Unmap(this);
