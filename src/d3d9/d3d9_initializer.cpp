@@ -35,6 +35,9 @@ namespace dxvk {
 
     if (pBuffer->GetMapMode() == D3D9_COMMON_BUFFER_MAP_MODE_BUFFER)
       InitHostVisibleBuffer(pBuffer->GetBufferSlice<D3D9_COMMON_BUFFER_TYPE_STAGING>());
+
+    if (pBuffer->GetMapMode() == D3D9_COMMON_BUFFER_MAP_MODE_UNMAPPABLE)
+      pBuffer->UnmapData();
   }
   
 

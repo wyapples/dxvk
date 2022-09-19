@@ -93,7 +93,7 @@ namespace dxvk {
           DWORD    dwFlags) {
     D3D9DeviceLock lock = m_parent->LockDevice();
 
-    m_parent->UnmapBuffers();
+//    m_parent->UnmapBuffers();
 
     uint32_t presentInterval = m_presentParams.PresentationInterval;
 
