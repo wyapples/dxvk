@@ -30,6 +30,7 @@
 #ifdef MSC_VER
 #pragma fenv_access (on)
 #endif
+#include <assert.h>
 
 namespace dxvk {
 
@@ -7440,7 +7441,7 @@ namespace dxvk {
       return;
 
     D3D9DeviceLock lock = LockDevice();
-    _ASSERT(false);
+    assert(false);
     // TODO_MMF: dead code
     //m_mappedBuffers.touch(pBuffer);
 #endif
