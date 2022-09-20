@@ -30,6 +30,7 @@
 #ifdef MSC_VER
 #pragma fenv_access (on)
 #endif
+#include <assert.h>
 
 namespace dxvk {
 
@@ -156,8 +157,11 @@ namespace dxvk {
     m_flags.set(D3D9DeviceFlag::DirtySpecializationEntries);
   }
 
-
+  // TODO_MMF: buffer unmapping shutdown workaround.
+  bool g_shuttingDown = false;
   D3D9DeviceEx::~D3D9DeviceEx() {
+    g_shuttingDown = true;
+  
     // Avoids hanging when in this state, see comment
     // in DxvkDevice::~DxvkDevice.
     if (this_thread::isInModuleDetachment())
@@ -4391,6 +4395,7 @@ namespace dxvk {
     pResource->SetLocked(Subresource, true);
 
     UnmapTextures();
+    UnmapBuffers();
 
     const bool noDirtyUpdate = Flags & D3DLOCK_NO_DIRTY_UPDATE;
     if ((desc.Pool == D3DPOOL_DEFAULT || !noDirtyUpdate) && !readOnly) {
@@ -4476,6 +4481,7 @@ namespace dxvk {
     }
 
     UnmapTextures();
+    UnmapBuffers();
     return D3D_OK;
   }
 
@@ -4627,6 +4633,7 @@ namespace dxvk {
         slice.slice);
     }
     UnmapTextures();
+    UnmapBuffers();
     FlushImplicit(false);
   }
 
@@ -4757,6 +4764,7 @@ namespace dxvk {
     pResource->IncrementLockCount();
 
     UnmapTextures();
+    UnmapBuffers();
     return D3D_OK;
   }
 
@@ -4797,6 +4805,7 @@ namespace dxvk {
     TrackBufferMappingBufferSequenceNumber(pResource);
 
     UnmapTextures();
+    UnmapBuffers();
     FlushImplicit(false);
     return D3D_OK;
   }
@@ -7432,7 +7441,9 @@ namespace dxvk {
       return;
 
     D3D9DeviceLock lock = LockDevice();
-    m_mappedBuffers.touch(pBuffer);
+    assert(false);
+    // TODO_MMF: dead code
+    //m_mappedBuffers.touch(pBuffer);
 #endif
   }
 
@@ -7441,9 +7452,11 @@ namespace dxvk {
 #ifdef D3D9_ALLOW_UNMAPPING
     if (pBuffer->GetMapMode() != D3D9_COMMON_BUFFER_MAP_MODE_UNMAPPABLE)
       return;
-
-    D3D9DeviceLock lock = LockDevice();
-    m_mappedBuffers.remove(pBuffer);
+    
+    if (!g_shuttingDown) {
+      D3D9DeviceLock lock = LockDevice();
+      m_mappedBuffers.erase(pBuffer);
+    }
 #endif
   }
 
@@ -7458,17 +7471,15 @@ namespace dxvk {
 
     uint32_t threshold = (m_d3d9Options.bufferMemory / 4) * 3;
 
-    auto iter = m_mappedBuffers.leastRecentlyUsedIter();
-    while (m_bufferMemoryAllocator.MappedMemory() >= threshold &&
-           iter != m_mappedBuffers.leastRecentlyUsedEndIter()) {
+    auto iter = m_mappedBuffers.begin();
+    while (m_bufferMemoryAllocator.MappedMemory() >= threshold && iter != m_mappedBuffers.end()) {
       if (unlikely((*iter)->GetLockCount() != 0)) {
         iter++;
         continue;
       }
 
       (*iter)->UnmapData();
-
-      iter = m_mappedBuffers.remove(iter);
+      iter = m_mappedBuffers.erase(iter);
     }
 #endif
   }

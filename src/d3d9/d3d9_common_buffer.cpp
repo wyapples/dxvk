@@ -21,6 +21,15 @@ namespace dxvk {
   }
 
 
+  D3D9CommonBuffer::~D3D9CommonBuffer()
+  {
+    if (m_desc.Size != 0)
+      m_parent->ChangeReportedMemory(m_desc.Size);
+
+    m_parent->RemoveMappedBuffer(this);
+  }
+
+
   HRESULT D3D9CommonBuffer::Lock(
           UINT   OffsetToLock,
           UINT   SizeToLock,
