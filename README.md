@@ -2,13 +2,14 @@
 
 This fork contains the following changes:
 * GTR2 specific tweaks for higher framerate.  Might be helpful for other gMotor based/derived DX9 games, but GTR2 is the sole focus of this fork.  Differences vs main repo are marked with GTR2_SPECIFIC symbol.
+* additional resource unmapping.
 * allow DX9->Vulkan OpenVR (Based on Joshua Ashton's work).
 * option to force SGSSAA-like AA.  It's brute force and I suspect can be done much smarter, by appliying sample shading only to some pipelines, I am not yet sure how - suggestions welcome!
 * option to force 32bit float depth buffer.
 
 I am not submitting my stuff to the main repo because I am not exactly a graphics guru and I doubt anyone needs my hacks there (at least no one expressed interest).  That said, if this is useful to anyone, I would greatly appreciate hints and suggestions, especially on how to minimize GPU idle time in VR and applying sample shading AA smarter.  Also, any ideas for further DX9 gMotor specific tweaks are welcome.
 
-Main branch is: vr-dx9-rel
+Main branch is: vr-dx9-release2
 
 # DXVK
 
@@ -21,27 +22,17 @@ The most recent development builds can be found [here](https://github.com/doitsu
 Release builds can be found [here](https://github.com/doitsujin/dxvk/releases).
 
 ## How to use
-In order to install a DXVK package obtained from the [release](https://github.com/doitsujin/dxvk/releases) page into a given wine prefix, run the following commands from within the DXVK directory:
-
+In order to install a DXVK package obtained from the [release](https://github.com/doitsujin/dxvk/releases) page into a given wine prefix, copy or symlink the DLLs into the following directories as follows, then open `winecfg` and manually add DLL overrides for `d3d11`, `d3d10core`, `dxgi`, and `d3d9`:
 ```
-export WINEPREFIX=/path/to/.wine-prefix
-./setup_dxvk.sh install
+WINEPREFIX=/path/to/wineprefix
+cp x64/*.dll $WINEPREFIX/drive_c/windows/system32
+cp x32/*.dll $WINEPREFIX/drive_c/windows/syswow64
+winecfg
 ```
-
-This will **copy** the DLLs into the `system32` and `syswow64` directories of your wine prefix and set up the required DLL overrides. Pure 32-bit prefixes are also supported.
-
-The setup script optionally takes the following arguments:
-- `--symlink`: Create symbolic links to the DLL files instead of copying them. This is especially useful for development.
-- `--with-d3d10`: Install the `d3d10{_1}.dll` helper libraries.
-- `--without-dxgi`: Do not install DXVK's DXGI implementation and use the one provided by wine instead.
 
 Verify that your application uses DXVK instead of wined3d by checking for the presence of the log file `d3d9.log` or `d3d11.log` in the application's directory, or by enabling the HUD (see notes below).
 
-In order to remove DXVK from a prefix, run the following command:
-```
-export WINEPREFIX=/path/to/.wine-prefix
-./setup_dxvk.sh uninstall
-```
+In order to remove DXVK from a prefix, remove the DLLs and DLL overrides, and run `wineboot -u` to restore the original DLL files.
 
 ## Build instructions
 
@@ -79,7 +70,7 @@ ninja install
 ```
 # 64-bit build. For 32-bit builds, replace
 # build-win64.txt with build-win32.txt
-meson --cross-file build-win64.txt --buildtype release --prefix /your/dxvk/directory build.w64
+meson setup --cross-file build-win64.txt --buildtype release --prefix /your/dxvk/directory build.w64
 cd build.w64
 ninja install
 ```
