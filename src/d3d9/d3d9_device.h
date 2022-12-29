@@ -942,13 +942,24 @@ namespace dxvk {
       return m_samplerCount.load();
     }
 
-    D3D9MemoryAllocator* GetAllocator() {
-      return &m_memoryAllocator;
+    D3D9MemoryAllocator* GetTextureAllocator() {
+      return &m_textureMemoryAllocator;
+    }
+
+    D3D9MemoryAllocator* GetBufferAllocator() {
+      return &m_bufferMemoryAllocator;
     }
 
     void* MapTexture(D3D9CommonTexture* pTexture, UINT Subresource);
     void TouchMappedTexture(D3D9CommonTexture* pTexture);
     void RemoveMappedTexture(D3D9CommonTexture* pTexture);
+
+    void* MapBuffer(D3D9CommonBuffer* pBuffer);
+    // VL: unlike textures, we only consider buffer being used if it was
+    // actually mapped.  Currently that's when buffer is locked.  So, Touch is
+    // a dead code.
+    void TouchMappedBuffer(D3D9CommonBuffer* pBuffer);
+    void RemoveMappedBuffer(D3D9CommonBuffer* pBuffer);
 
   private:
 
@@ -1159,6 +1170,7 @@ namespace dxvk {
       UINT Subresource);
 
     void UnmapTextures();
+    void UnmapBuffers();
 
     uint64_t GetCurrentSequenceNumber();
 
@@ -1171,7 +1183,8 @@ namespace dxvk {
     D3D9Adapter*                    m_adapter;
     Rc<DxvkDevice>                  m_dxvkDevice;
 
-    D3D9MemoryAllocator             m_memoryAllocator;
+    D3D9MemoryAllocator             m_textureMemoryAllocator;
+    D3D9MemoryAllocator             m_bufferMemoryAllocator;
 
     // Second memory allocator used for D3D9 shader bytecode.
     // Most games never access the stored bytecode, so putting that
@@ -1318,7 +1331,9 @@ namespace dxvk {
     Direct3DState9                  m_state;
 
 #ifdef D3D9_ALLOW_UNMAPPING
-    lru_list<D3D9CommonTexture*>    m_mappedTextures;
+    lru_list<D3D9CommonTexture*>          m_mappedTextures;
+    // Only lock count is considered for buffers.
+    std::unordered_set<D3D9CommonBuffer*> m_mappedBuffers;
 #endif
 
     D3D9VkInteropDevice             m_d3d9Interop;

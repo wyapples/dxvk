@@ -295,9 +295,10 @@ namespace dxvk {
     else
       msInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
-    if (fs && fs->flags().test(DxvkShaderFlag::HasSampleRateShading)) {
+    // GTR2_SPECIFIC: note that there are more HasSampleRateShading uses, might be worth investigating them all.
+    if (fs && (likely(device->config().forceSampleRateShading) || fs->flags().test(DxvkShaderFlag::HasSampleRateShading))) {
       msInfo.sampleShadingEnable  = VK_TRUE;
-      msInfo.minSampleShading     = 1.0f;
+      msInfo.minSampleShading     = device->config().forcedSampleRateShadingFactor;
     }
 
     msSampleMask                  = state.ms.sampleMask() & ((1u << msInfo.rasterizationSamples) - 1);
