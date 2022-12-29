@@ -27,6 +27,7 @@
 #include "d3d9_swvp_emu.h"
 
 #include "d3d9_spec_constants.h"
+#include "d3d9_interop.h"
 
 #include <unordered_set>
 #include <vector>
@@ -118,6 +119,7 @@ namespace dxvk {
     friend class D3D9SwapChainEx;
     friend class D3D9ConstantBuffer;
     friend class D3D9UserDefinedAnnotation;
+    friend D3D9VkInteropDevice;
   public:
 
     D3D9DeviceEx(
@@ -670,7 +672,7 @@ namespace dxvk {
 
     HWND GetWindow();
 
-    Rc<DxvkDevice> GetDXVKDevice() {
+    const Rc<DxvkDevice>& GetDXVKDevice() {
       return m_dxvkDevice;
     }
 
@@ -1154,7 +1156,7 @@ namespace dxvk {
     void UpdateVertexBoolSpec(uint32_t value);
     void UpdatePixelBoolSpec(uint32_t value);
     void UpdatePixelShaderSamplerSpec(uint32_t types, uint32_t projections, uint32_t fetch4);
-    void UpdateCommonSamplerSpec(uint32_t boundMask, uint32_t depthMask);
+    void UpdateCommonSamplerSpec(uint32_t boundMask, uint32_t depthMask, uint32_t drefMask);
     void UpdatePointModeSpec(uint32_t mode);
     void UpdateFogModeSpec(bool fogEnabled, D3DFOGMODE vertexFogMode, D3DFOGMODE pixelFogMode);
 
@@ -1248,6 +1250,7 @@ namespace dxvk {
     uint32_t                        m_instancedData = 0;
 
     uint32_t                        m_depthTextures = 0;
+    uint32_t                        m_drefClamp = 0;
     uint32_t                        m_cubeTextures = 0;
     uint32_t                        m_textureTypes = 0;
     uint32_t                        m_projectionBitfield  = 0;
@@ -1332,6 +1335,8 @@ namespace dxvk {
     // Only lock count is considered for buffers.
     std::unordered_set<D3D9CommonBuffer*> m_mappedBuffers;
 #endif
+
+    D3D9VkInteropDevice             m_d3d9Interop;
   };
 
 }

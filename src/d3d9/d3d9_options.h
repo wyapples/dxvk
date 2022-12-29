@@ -91,6 +91,9 @@ namespace dxvk {
     /// Support D32
     bool supportD32;
 
+    /// Use D32f for D24
+    bool useD32forD24;
+
     /// Disable D3DFMT_A8 for render targets.
     /// Specifically to work around a game
     /// bug in The Sims 2 that happens on native too!
@@ -155,6 +158,9 @@ namespace dxvk {
 
     /// How much virtual memory will be used for buffers (in MB).
     int32_t bufferMemory;
+
+    /// Shader dump path
+    std::string shaderDumpPath;
   };
 
 }
