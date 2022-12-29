@@ -670,13 +670,13 @@ namespace dxvk {
     return m_buffer;
   }
 
-  void D3D9CommonTexture::AllocData() {
+  /*void D3D9CommonTexture::AllocData() {
     // D3D9Initializer will handle clearing the data
     const uint32_t count = CountSubresources();
     for (uint32_t i = 0; i < count; i++) {
       m_data[i] = m_device->GetTextureAllocator()->Alloc(GetMipSize(i));
     }
-  }
+  }*/
 
   DxvkBufferSlice D3D9CommonTexture::GetBufferSlice(UINT Subresource) {
     return DxvkBufferSlice(GetBuffer(), m_memoryOffset[Subresource], GetMipSize(Subresource));
