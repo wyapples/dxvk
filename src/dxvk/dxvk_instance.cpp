@@ -287,6 +287,7 @@ namespace dxvk {
     str << pCallbackData->pMessage;
 
     Logger::log(logLevel, str.str());
+    ::OutputDebugStringA(str.str().c_str());
     return VK_FALSE;
   }
 

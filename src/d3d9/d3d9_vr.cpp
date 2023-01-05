@@ -70,28 +70,41 @@ namespace dxvk {
 
     HRESULT STDMETHODCALLTYPE TransferSurface(
       IDirect3DSurface9* pSurface,
+      int vkImageLayout,
       BOOL waitResourceIdle)
     {
       if (unlikely(pSurface == nullptr))
         return D3DERR_INVALIDCALL;
-      
+      //return S_OK;
+
       auto* tex = static_cast<D3D9Surface*>(pSurface)->GetCommonTexture();
       const auto& image = tex->GetImage();
 
       VkImageSubresourceRange subresources = {
-        VK_IMAGE_ASPECT_COLOR_BIT,
+     //  VK_IMAGE_ASPECT_COLOR_BIT,
+                                               VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
+                                                 VK_IMAGE_USAGE_SAMPLED_BIT,
+      
         0, image->info().mipLevels,
         0, image->info().numLayers
       };
 
-      m_device->TransformImage(
-        tex, &subresources,
-        image->info().layout,
-        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+      //int skip;
+      //if (image->info().layout != static_cast<VkImageLayout>(vkImageLayout)) {
+        m_device->TransformImage(tex,
+                                 &subresources,
+                                 image->info().layout,
+                                 static_cast<VkImageLayout>(vkImageLayout));
+      /*}
+    else {
+        skip = 0;
+      }*/
+        //VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+        //VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
       
       // This wait may need to be on all Faces and Mip Levels (2 loops).
-      if (waitResourceIdle)
-        m_device->WaitForResource(image, tex->GetMappingBufferSequenceNumber(0u), D3DLOCK_READONLY);
+      //if (waitResourceIdle)
+        //m_device->WaitForResource(image, tex->GetMappingBufferSequenceNumber(0u), D3DLOCK_READONLY);
 
       return D3D_OK;
     }
