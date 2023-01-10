@@ -10,7 +10,6 @@ namespace dxvk {
     trackPipelineLifetime         = config.getOption<Tristate>("dxvk.trackPipelineLifetime",  Tristate::Auto);
     useRawSsbo                    = config.getOption<Tristate>("dxvk.useRawSsbo",             Tristate::Auto);
     hud                           = config.getOption<std::string>("dxvk.hud", "");
-    forceSampleRateShading        = config.getOption<bool>("dxvk.forceSampleRateShading",          false);
     forcedSampleRateShadingFactor = config.getOption<float>("dxvk.forceSampleRateShadingFactor",   1.0f);
   }
 
