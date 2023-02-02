@@ -106,7 +106,7 @@ public:
     return D3D_OK;
   }
 
-  HRESULT STDMETHODCALLTYPE BeginOVRSubmit() 
+  HRESULT STDMETHODCALLTYPE BeginOVRSubmit()
   {
     m_device->Flush();
     m_device->SynchronizeCsThread(DxvkCsThread::SynchronizeAll);
@@ -115,25 +115,26 @@ public:
     return D3D_OK;
   }
 
-  HRESULT STDMETHODCALLTYPE EndOVRSubmit() 
+  HRESULT STDMETHODCALLTYPE EndOVRSubmit()
   {
     m_device->GetDXVKDevice()->unlockSubmission();
 
     return D3D_OK;
   }
 
-  HRESULT STDMETHODCALLTYPE GetVkDevice(XR_VK_DEVICE_DESC* vkDeviceDescOut) 
+  HRESULT STDMETHODCALLTYPE
+  GetOXRVkDeviceDesc(OXR_VK_DEVICE_DESC* vkDeviceDescOut)
   {
     if (unlikely(vkDeviceDescOut == nullptr))
       return D3DERR_INVALIDCALL;
 
     auto device = m_device->GetDXVKDevice();
- 
+
     vkDeviceDescOut->Device = device->handle();
     vkDeviceDescOut->PhysicalDevice = device->adapter()->handle();
     vkDeviceDescOut->Instance = device->instance()->handle();
     vkDeviceDescOut->QueueIndex = device->queues().graphics.queueIndex;
-    vkDeviceDescOut->QueueFamilyIndex = device->queues().graphics.queueIndex;
+    vkDeviceDescOut->QueueFamilyIndex = device->queues().graphics.queueFamily;
 
     return D3D_OK;
   }
