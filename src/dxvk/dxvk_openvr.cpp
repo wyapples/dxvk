@@ -171,7 +171,8 @@ namespace dxvk {
         extensionList.resize(len);
         len = m_compositor->GetVulkanInstanceExtensionsRequired(extensionList.data(), len);
     }
-    return parseExtensionList(std::string(extensionList.data(), len));
+    return parseExtensionList(
+      std::string(extensionList.data(), len), true /*instance*/);
   }
   
   
@@ -208,18 +209,26 @@ namespace dxvk {
         extensionList.resize(len);
         len = m_compositor->GetVulkanDeviceExtensionsRequired(adapter->handle(), extensionList.data(), len);
     }
-    return parseExtensionList(std::string(extensionList.data(), len));
+    return parseExtensionList(std::string(extensionList.data(), len),
+                              false /*instance*/);
   }
   
   
-  DxvkNameSet VrInstance::parseExtensionList(const std::string& str) const {
+  DxvkNameSet
+  VrInstance::parseExtensionList(const std::string& str, bool instance) const
+  {
     DxvkNameSet result;
     
     std::stringstream strstream(str);
     std::string       section;
     
-    while (std::getline(strstream, section, ' '))
+    while (std::getline(strstream, section, ' ')) {
       result.add(section.c_str());
+      if (instance)
+        Logger::info(str::format("OpenVR: Instance Extension requested:", section));
+      else
+        Logger::info(str::format("OpenVR: Device Extension requested:", section));
+    }
     
     return result;
   }
