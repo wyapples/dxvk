@@ -122,6 +122,22 @@ public:
     return D3D_OK;
   }
 
+  HRESULT STDMETHODCALLTYPE GetVkDevice(XR_VK_DEVICE_DESC* vkDeviceDescOut) 
+  {
+    if (unlikely(vkDeviceDescOut == nullptr))
+      return D3DERR_INVALIDCALL;
+
+    auto device = m_device->GetDXVKDevice();
+ 
+    vkDeviceDescOut->Device = device->handle();
+    vkDeviceDescOut->PhysicalDevice = device->adapter()->handle();
+    vkDeviceDescOut->Instance = device->instance()->handle();
+    vkDeviceDescOut->QueueIndex = device->queues().graphics.queueIndex;
+    vkDeviceDescOut->QueueFamilyIndex = device->queues().graphics.queueIndex;
+
+    return D3D_OK;
+  }
+
 private:
   D3D9DeviceEx* m_device;
   D3D9DeviceLock m_lock;
