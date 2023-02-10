@@ -71,14 +71,12 @@ namespace dxvk {
 
 
   DxvkNameSet DxvkXrProvider::queryInstanceExtensions() const {
-    uint32_t len;
     auto extensionList = env::getEnvVar("GTR2_XR_VK_INSTANCE_EXT_REQUIREMENTS");
     return parseExtensionList(extensionList, true /*instance*/);
   }
   
   
   DxvkNameSet DxvkXrProvider::queryDeviceExtensions() const {
-    int res;
     auto extensionList = env::getEnvVar("GTR2_XR_VK_DEVICE_EXT_REQUIREMENTS");
     return parseExtensionList(extensionList, false /*instance*/);
   }
