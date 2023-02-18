@@ -91,14 +91,14 @@ namespace dxvk {
     std::stringstream strstream(str);
     std::string       section;
     
+    if (instance)
+      Logger::info("OpenXR: Instance Extensions requested:");
+    else
+      Logger::info("OpenXR: Device Extensions requested:");
+
     while (std::getline(strstream, section, ' ')) {
       result.add(section.c_str());
-      if (instance)
-        Logger::info(
-          str::format("OpenXR: Instance Extension requested:", section));
-      else
-        Logger::info(
-          str::format("OpenXR: Device Extension requested:", section));
+      Logger::info(section);
     }
     
     return result;

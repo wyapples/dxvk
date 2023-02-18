@@ -53,7 +53,7 @@ public:
     pDesc->PhysicalDevice = device->adapter()->handle();
     pDesc->Instance = device->instance()->handle();
     pDesc->Queue = device->queues().graphics.queueHandle;
-    pDesc->QueueFamilyIndex = device->queues().graphics.queueIndex;
+    pDesc->QueueFamilyIndex = device->queues().graphics.queueFamily;
 
     pDesc->Width = desc->Width;
     pDesc->Height = desc->Height;

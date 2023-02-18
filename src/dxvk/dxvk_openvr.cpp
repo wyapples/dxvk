@@ -55,13 +55,13 @@ namespace dxvk {
     if (m_no_vr || m_initializedDevExt)
         return;
 
-    if (!m_vr_key)
+    /*if (!m_vr_key)
     {
         LSTATUS status;
 
         if ((status = RegOpenKeyExA(HKEY_CURRENT_USER, "Software\\Wine\\VR", 0, KEY_READ, &m_vr_key)))
             Logger::info(str::format("OpenVR: could not open registry key, status ", status));
-    }
+    }*/
 
     if (!m_vr_key && !m_compositor)
       m_compositor = this->getCompositor();
@@ -241,9 +241,8 @@ namespace dxvk {
     // applications may not have OpenVR loaded at the time
     // they create the DXGI instance, so we try our own DLL.
     m_ovrApi = this->loadLibrary();
-    
     if (!m_ovrApi) {
-      Logger::info("OpenVR: Failed to locate module");
+      Logger::info("OpenVR is not in use.");
       return nullptr;
     }
     
@@ -314,11 +313,12 @@ namespace dxvk {
 
 
   HMODULE VrInstance::loadLibrary() {
-    HMODULE handle = nullptr;
-    if (!(handle = ::GetModuleHandle("openvr_api.dll"))) {
+    HMODULE handle = ::GetModuleHandle("openvr_api.dll");
+    /*if (!(handle = ::GetModuleHandle("openvr_api.dll")))
+    {
       handle = ::LoadLibrary("openvr_api_dxvk.dll");
       m_loadedOvrApi = handle != nullptr;
-    }
+    }*/
     return handle;
   }
 
